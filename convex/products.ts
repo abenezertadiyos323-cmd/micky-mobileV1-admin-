@@ -110,6 +110,54 @@ async function resolveThumbnail(
 
 const LOW_STOCK_THRESHOLD = 5;
 
+/**
+ * Public query used by the customer mini app.
+ * Returns all non-archived products with thumbnail URLs resolved.
+ * Exposes customer-app-compatible field aliases (inStock, is_accessory,
+ * exchange_available, main_image_url) so the frontend normalizer works
+ * without modification.
+ * Always returns [] on any backend error — never throws to the client.
+ */
+export const listAllProducts = query({
+  handler: async (ctx) => {
+    try {
+      const products = await ctx.db
+        .query("products")
+        .withIndex("by_isArchived_createdAt", (qb) => qb.eq("isArchived", false))
+        .order("desc")
+        .collect();
+
+      return Promise.all(
+        products.map(async (p) => {
+          let main_image_url = "";
+          try {
+            const images = Array.isArray(p.images) ? p.images : [];
+            if (images.length > 0) {
+              const sorted = [...images].sort((a, b) => a.order - b.order);
+              main_image_url =
+                (await ctx.storage.getUrl(sorted[0].storageId)) ?? "";
+            }
+          } catch {
+            // Non-fatal — image URL failure must not drop the entire product
+          }
+
+          return {
+            ...p,
+            // Customer-app field aliases:
+            name: p.phoneType ?? "",        // mapToProductVM reads raw.name → brand/model
+            main_image_url,                 // resolved thumbnail
+            inStock: p.stockQuantity > 0,   // normalizePhone reads raw.inStock
+            is_accessory: p.type === "accessory",
+            exchange_available: p.exchangeEnabled,
+          };
+        }),
+      );
+    } catch {
+      return [];
+    }
+  },
+});
+
 type InventoryTab =
   | "all"
   | "in_stock"
