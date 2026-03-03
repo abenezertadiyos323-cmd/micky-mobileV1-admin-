@@ -316,6 +316,15 @@ export default defineSchema({
     .index("by_phoneType_and_createdAt", ["phoneType", "createdAt"]),
 
   /* =========================
+     SEARCHES
+  ========================= */
+  searches: defineTable({
+    userId: v.optional(v.string()),
+    term: v.string(),
+    createdAt: v.number(),
+  }).index("by_term", ["term"]),
+
+  /* =========================
      FAVORITES
   ========================= */
   favorites: defineTable({

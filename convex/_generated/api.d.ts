@@ -17,6 +17,7 @@ import type * as favorites from "../favorites.js";
 import type * as files from "../files.js";
 import type * as messages from "../messages.js";
 import type * as products from "../products.js";
+import type * as search from "../search.js";
 import type * as sessions from "../sessions.js";
 import type * as threads from "../threads.js";
 
@@ -36,6 +37,7 @@ declare const fullApi: ApiFromModules<{
   files: typeof files;
   messages: typeof messages;
   products: typeof products;
+  search: typeof search;
   sessions: typeof sessions;
   threads: typeof threads;
 }>;
