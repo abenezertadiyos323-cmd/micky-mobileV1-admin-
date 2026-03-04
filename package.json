@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "convex:run:prod": "convex run --deployment-name fastidious-schnauzer-265",
+    "convex:deploy:prod": "convex deploy --deployment-name fastidious-schnauzer-265 --yes"
   },
   "dependencies": {
     "convex": "^1.32.0",
