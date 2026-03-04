@@ -142,23 +142,33 @@ export const listRecentSearches = query({
   },
 });
 
+function normalizeTerm(term: string): string {
+  return term
+    .trim()
+    .toLowerCase()
+    // insert space between letters<->digits so "iphone16" => "iphone 16"
+    .replace(/([a-z])(\d)/g, "$1 $2")
+    .replace(/(\d)([a-z])/g, "$1 $2")
+    // collapse multiple spaces
+    .replace(/\s+/g, " ");
+}
+
 export const searchProducts = query({
   args: {
     term: v.optional(v.string()),
     limit: v.optional(v.number()),
   },
   handler: async (ctx, args) => {
-    const term = (args.term || "").trim().toLowerCase();
+    const q = normalizeTerm(args.term || "");
     const limit = args.limit ?? 8;
 
     // Minimum query length: 2 characters
-    if (term.length < 2) {
+    if (q.length < 2) {
       return [];
     }
 
     try {
-      // Tokenize the search term
-      const tokens = term.split(/\s+/).filter((t) => t.length > 0);
+      const tokens = q.split(" ").filter(Boolean);
 
       // Use search index for the first token to get candidates (50 max)
       const candidates = await ctx.db
