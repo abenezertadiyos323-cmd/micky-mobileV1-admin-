@@ -105,27 +105,41 @@ export const searchProducts = query({
     }
 
     try {
-      // Use search index on searchNormalized field
-      const rawResults = await ctx.db
+      // Tokenize the search term
+      const tokens = term.split(/\s+/).filter((t) => t.length > 0);
+
+      // Use search index for the first token to get candidates (50 max)
+      const candidates = await ctx.db
         .query("products")
         .withSearchIndex("search_products", (s) =>
-          s.search("searchNormalized", term).eq("isArchived", false),
+          s.search("searchNormalized", tokens[0]).eq("isArchived", false),
         )
-        .take(limit);
+        .take(50);
 
-      return rawResults.map((p: any) => ({
-        id: p._id,
-        type: p.type,
-        phoneType: p.phoneType ?? null,
-        ram: p.ram ?? null,
-        storage: p.storage ?? null,
-        condition: p.condition ?? null,
-        price: p.price,
-        stockQuantity: p.stockQuantity,
-        description: p.description ?? null,
-        images: p.images ?? [],
-        createdAt: p.createdAt,
-      }));
+      // Filter in-memory to ensure ALL tokens are present in searchNormalized
+      const filtered = candidates.filter((p) => {
+        const searchNormalized = (p.searchNormalized || "").toLowerCase();
+        return tokens.every((token) => searchNormalized.includes(token));
+      });
+
+      return filtered.slice(0, limit).map((p: any) => {
+        const mainImageUrl = Array.isArray(p.images) && p.images.length > 0
+          ? p.images[0]
+          : undefined;
+
+        return {
+          _id: p._id,
+          phoneType: p.phoneType ?? undefined,
+          brand: p.brand ?? undefined,
+          model: p.model ?? undefined,
+          storage: p.storage ?? undefined,
+          condition: p.condition ?? undefined,
+          price: p.price,
+          images: p.images ?? [],
+          mainImageUrl,
+          exchange_available: p.exchange_available ?? undefined,
+        };
+      });
     } catch (err) {
       console.error("Search error:", err);
       return [];
