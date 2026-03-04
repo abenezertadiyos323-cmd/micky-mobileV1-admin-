@@ -53,6 +53,16 @@ const AffiliateStatus = v.union(
   v.literal("inactive")
 );
 
+// Backward compatibility: legacy products stored images as { storageId, order }.
+// New products store direct URL strings.
+const ProductImage = v.union(
+  v.string(),
+  v.object({
+    storageId: v.id("_storage"),
+    order: v.number(),
+  }),
+);
+
 /* =========================
    SCHEMA
 ========================= */
@@ -94,11 +104,9 @@ export default defineSchema({
     exchangeEnabled: v.boolean(),
     description: v.optional(v.string()),
 
-    images: v.array(v.object({
-      storageId: v.id("_storage"),
-      // url is NOT stored — resolved at query time via ctx.storage.getUrl()
-      order: v.number(),
-    })),
+    // New shape: string[] URLs.
+    // Legacy shape ({ storageId, order }) remains valid for existing products.
+    images: v.array(ProductImage),
 
     isArchived: v.boolean(),
     archivedAt: v.optional(v.number()),

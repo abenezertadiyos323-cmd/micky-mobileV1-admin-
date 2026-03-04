@@ -1,7 +1,57 @@
 // convex/exchanges.ts
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
-import type { Id } from "./_generated/dataModel";
+
+const trimImageUrl = (value: unknown): string | null => {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+};
+
+async function normalizeProductImages(
+  ctx: { storage: { getUrl: (id: string) => Promise<string | null> } },
+  images: unknown,
+): Promise<string[]> {
+  if (!Array.isArray(images) || images.length === 0) return [];
+
+  const normalized = images
+    .map((img, index) => {
+      const directUrl = trimImageUrl(img);
+      if (directUrl) return { kind: "url" as const, order: index, value: directUrl };
+
+      if (!img || typeof img !== "object") return null;
+      const legacy = img as { storageId?: string; order?: number; url?: string };
+      if (!legacy.storageId) return null;
+      return {
+        kind: "legacy" as const,
+        order: typeof legacy.order === "number" ? legacy.order : index,
+        storageId: legacy.storageId,
+        fallbackUrl: trimImageUrl(legacy.url),
+      };
+    })
+    .filter((img): img is NonNullable<typeof img> => img !== null)
+    .sort((a, b) => a.order - b.order);
+
+  const urls: string[] = [];
+  for (const img of normalized) {
+    if (img.kind === "url") {
+      urls.push(img.value);
+      continue;
+    }
+    try {
+      const resolved = await ctx.storage.getUrl(img.storageId);
+      const url = trimImageUrl(resolved) ?? img.fallbackUrl;
+      if (url) urls.push(url);
+    } catch {
+      if (img.fallbackUrl) urls.push(img.fallbackUrl);
+    }
+  }
+
+  return urls
+    .map((url) => trimImageUrl(url))
+    .filter((url): url is string => url !== null)
+    .slice(0, 3);
+}
 
 /**
  * List all exchanges sorted by createdAt descending, with thread and
@@ -61,7 +111,7 @@ export const listExchangesByThread = query({
 
 /**
  * Get a single exchange by ID with thread and desiredPhone joined.
- * Image URLs ARE resolved via storage — used by ExchangeDetail.
+ * Images are returned as URL strings for ExchangeDetail.
  */
 export const getExchange = query({
   args: { exchangeId: v.id("exchanges") },
@@ -72,16 +122,10 @@ export const getExchange = query({
     const thread = await ctx.db.get(ex.threadId);
 
     // Resolve product + image URLs
-    let desiredPhone: (typeof ex & { images: { storageId: Id<"_storage">; order: number; url?: string }[] }) | undefined;
+    let desiredPhone: (typeof ex & { images: string[] }) | undefined;
     const rawPhone = await ctx.db.get(ex.desiredPhoneId);
     if (rawPhone) {
-      const images = await Promise.all(
-        rawPhone.images.map(async (img) => ({
-          storageId: img.storageId,
-          order: img.order,
-          url: (await ctx.storage.getUrl(img.storageId)) ?? undefined,
-        }))
-      );
+      const images = await normalizeProductImages(ctx, rawPhone.images);
       desiredPhone = { ...rawPhone, images } as unknown as typeof desiredPhone;
     }
 

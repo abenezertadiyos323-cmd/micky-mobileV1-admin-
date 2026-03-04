@@ -198,7 +198,7 @@ export default function ExchangeDetail() {
               >
                 {exchange.desiredPhone.images[0] ? (
                   <img
-                    src={exchange.desiredPhone.images[0].url}
+                    src={exchange.desiredPhone.images[0]}
                     alt=""
                     className="w-full h-full object-cover"
                   />

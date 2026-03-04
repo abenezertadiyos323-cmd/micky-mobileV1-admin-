@@ -60,48 +60,88 @@ function buildSearchNormalized(p: {
     .trim();
 }
 
-// Image stored in DB: only storageId + order. url is computed at query time.
-const vImageInput = v.object({
-  storageId: v.id("_storage"),
-  order: v.number(),
-});
+const vImageInput = v.string();
 
-// ---- Helper: resolve ALL storage URLs (used by getProductById) ----
+type StorageCtx = {
+  storage: {
+    getUrl: (id: string) => Promise<string | null>;
+  };
+};
 
-async function resolveImages(
-  ctx: { storage: { getUrl: (id: string) => Promise<string | null> } },
-  images: Array<{ storageId: string; order: number }>,
-) {
-  return Promise.all(
-    images.map(async (img) => ({
-      storageId: img.storageId,
-      order: img.order,
-      url: (await ctx.storage.getUrl(img.storageId)) ?? "",
-    })),
-  );
+type LegacyImage = {
+  storageId: string;
+  order?: number;
+  url?: string;
+};
+
+const trimImageUrl = (value: unknown): string | null => {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+};
+
+const sanitizeImageUrls = (images: string[]): string[] => {
+  const cleaned = images
+    .map((img) => trimImageUrl(img))
+    .filter((img): img is string => img !== null);
+  return cleaned.slice(0, 3);
+};
+
+function asLegacyImage(value: unknown): LegacyImage | null {
+  if (!value || typeof value !== "object") return null;
+  const maybe = value as Partial<LegacyImage>;
+  if (typeof maybe.storageId !== "string" || maybe.storageId.length === 0) {
+    return null;
+  }
+  return {
+    storageId: maybe.storageId,
+    order: typeof maybe.order === "number" ? maybe.order : undefined,
+    url: typeof maybe.url === "string" ? maybe.url : undefined,
+  };
 }
 
-// ---- Helper: resolve ONLY the first image URL (thumbnail, for list view) ----
-
-async function resolveThumbnail(
-  ctx: { storage: { getUrl: (id: string) => Promise<string | null> } },
-  images: Array<{ storageId: string; order: number }>,
-) {
+async function normalizeImageUrls(
+  ctx: StorageCtx,
+  images: unknown,
+): Promise<string[]> {
   if (!Array.isArray(images) || images.length === 0) return [];
-  const sorted = [...images].sort((a, b) => a.order - b.order);
-  let url = "";
-  if (sorted[0].storageId && typeof sorted[0].storageId === "string") {
+
+  const normalized = images
+    .map((img, index) => {
+      const directUrl = trimImageUrl(img);
+      if (directUrl) {
+        return { kind: "url" as const, order: index, value: directUrl };
+      }
+      const legacy = asLegacyImage(img);
+      if (legacy) {
+        return {
+          kind: "legacy" as const,
+          order: legacy.order ?? index,
+          storageId: legacy.storageId,
+          fallbackUrl: trimImageUrl(legacy.url),
+        };
+      }
+      return null;
+    })
+    .filter((img): img is NonNullable<typeof img> => img !== null)
+    .sort((a, b) => a.order - b.order);
+
+  const urls: string[] = [];
+  for (const img of normalized) {
+    if (img.kind === "url") {
+      urls.push(img.value);
+      continue;
+    }
     try {
-      url = (await ctx.storage.getUrl(sorted[0].storageId)) ?? "";
+      const resolved = await ctx.storage.getUrl(img.storageId);
+      const url = trimImageUrl(resolved) ?? img.fallbackUrl;
+      if (url) urls.push(url);
     } catch {
-      url = "";
+      if (img.fallbackUrl) urls.push(img.fallbackUrl);
     }
   }
-  return sorted.map((img, index) => ({
-    storageId: img.storageId,
-    order: img.order,
-    ...(index === 0 ? { url } : {}),
-  }));
+
+  return sanitizeImageUrls(urls);
 }
 
 // ================================================================
@@ -112,7 +152,7 @@ const LOW_STOCK_THRESHOLD = 5;
 
 /**
  * Public query used by the customer mini app.
- * Returns all non-archived products with thumbnail URLs resolved.
+ * Returns all non-archived products with images as URL strings.
  * Exposes customer-app-compatible field aliases (inStock, is_accessory,
  * exchange_available, main_image_url) so the frontend normalizer works
  * without modification.
@@ -129,23 +169,14 @@ export const listAllProducts = query({
 
       return Promise.all(
         products.map(async (p) => {
-          let main_image_url = "";
-          try {
-            const images = Array.isArray(p.images) ? p.images : [];
-            if (images.length > 0) {
-              const sorted = [...images].sort((a, b) => a.order - b.order);
-              main_image_url =
-                (await ctx.storage.getUrl(sorted[0].storageId)) ?? "";
-            }
-          } catch {
-            // Non-fatal — image URL failure must not drop the entire product
-          }
+          const images = await normalizeImageUrls(ctx, p.images);
 
           return {
             ...p,
+            images,
             // Customer-app field aliases:
             name: p.phoneType ?? "",        // mapToProductVM reads raw.name → brand/model
-            main_image_url,                 // resolved thumbnail
+            main_image_url: images[0] ?? "",
             inStock: p.stockQuantity > 0,   // normalizePhone reads raw.inStock
             is_accessory: p.type === "accessory",
             exchange_available: p.exchangeEnabled,
@@ -199,8 +230,7 @@ const normalizeType = (type?: string): ProductType | undefined => {
 /**
  * List all products with optional filtering.
  * Sorted newest-first using by_isArchived_createdAt index.
- * Resolves URL ONLY for the first image (thumbnail) to reduce storage.getUrl calls.
- * Use getProductById to get all image URLs.
+ * Returns image URLs in `images: string[]`.
  */
 export const listProducts = query({
   args: {
@@ -329,13 +359,12 @@ export const listProducts = query({
       });
     }
 
-    // Resolve thumbnail URL only. Per-row errors are swallowed so one bad row
+    // Image normalization errors are swallowed so one bad row
     // cannot crash the entire query — the row is returned with images: [].
     return Promise.all(
       products.map(async (p) => {
         try {
-          const safeImages = Array.isArray(p.images) ? p.images : [];
-          return { ...p, images: await resolveThumbnail(ctx, safeImages) };
+          return { ...p, images: await normalizeImageUrls(ctx, p.images) };
         } catch {
           return { ...p, images: [] };
         }
@@ -346,14 +375,14 @@ export const listProducts = query({
 
 /**
  * Fetch a single product by its Convex ID.
- * Returns images with resolved URLs.
+ * Returns images as URL strings.
  */
 export const getProductById = query({
   args: { productId: v.id("products") },
   handler: async (ctx, { productId }) => {
     const p = await ctx.db.get(productId);
     if (!p) return null;
-    return { ...p, images: await resolveImages(ctx, p.images) };
+    return { ...p, images: await normalizeImageUrls(ctx, p.images) };
   },
 });
 
@@ -362,8 +391,7 @@ export const getProductById = query({
 // ================================================================
 
 /**
- * Create a new product. Images are passed as { storageId, order } pairs;
- * url is NOT stored — it is resolved at query time via Convex Storage.
+ * Create a new product. Images are stored as URL strings.
  */
 export const createProduct = mutation({
   args: {
@@ -392,8 +420,10 @@ export const createProduct = mutation({
   handler: async (ctx, args) => {
     const now = Date.now();
     const exchangeEnabled = normalizeExchangeEnabled(args.type, args.exchangeEnabled);
+    const images = sanitizeImageUrls(args.images);
     return await ctx.db.insert("products", {
       ...args,
+      images,
       exchangeEnabled,
       isArchived: false,
       searchText: buildSearchText(args),
@@ -432,7 +462,7 @@ export const updateProduct = mutation({
     operatingSystem: v.optional(v.string()),
     features: v.optional(v.string()),
   },
-  handler: async (ctx, { productId, updatedBy, ...patch }) => {
+  handler: async (ctx, { productId, updatedBy, images, ...patch }) => {
     const existing = await ctx.db.get(productId);
     if (!existing) {
       throw new Error("Product not found");
@@ -454,9 +484,12 @@ export const updateProduct = mutation({
     };
     const searchText = buildSearchText(searchFieldArgs);
     const searchNormalized = buildSearchNormalized(searchFieldArgs);
+    const imagePatch =
+      images !== undefined ? { images: sanitizeImageUrls(images) } : {};
 
     await ctx.db.patch(productId, {
       ...patch,
+      ...imagePatch,
       exchangeEnabled: normalizedExchangeEnabled,
       searchText,
       searchNormalized,

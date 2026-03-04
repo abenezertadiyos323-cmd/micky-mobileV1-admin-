@@ -16,7 +16,7 @@ function getStockStyleDark(qty: number): { background: string; color: string } {
 export default function ProductCard({ product, onClick }: ProductCardProps) {
   const stockQuantity = typeof product.stockQuantity === 'number' ? product.stockQuantity : 0;
   const images = Array.isArray(product.images) ? product.images : [];
-  const imageUrl = images[0]?.url;
+  const imageUrl = images[0];
   const phoneType = typeof product.phoneType === 'string' && product.phoneType.trim().length > 0
     ? product.phoneType
     : 'Unnamed product';

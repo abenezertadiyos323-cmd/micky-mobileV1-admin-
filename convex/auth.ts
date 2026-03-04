@@ -17,6 +17,11 @@ type TelegramUser = {
   photo_url?: string;
 };
 
+function getEnvValue(name: string): string | undefined {
+  const runtime = globalThis as { process?: { env?: Record<string, string | undefined> } };
+  return runtime.process?.env?.[name];
+}
+
 function parseTelegramUser(userRaw: string): TelegramUser {
   let parsed: unknown;
   try {
@@ -73,7 +78,7 @@ async function hmacSha256(
     typeof keyInput === "string" ? encoder.encode(keyInput) : keyInput;
   const key = await crypto.subtle.importKey(
     "raw",
-    keyBytes,
+    keyBytes as BufferSource,
     { name: "HMAC", hash: "SHA-256" },
     false,
     ["sign"],
@@ -127,7 +132,7 @@ export const verifyTelegramUser = mutation({
     initData: v.string(),
   },
   handler: async (ctx, args) => {
-    const botToken = process.env.TELEGRAM_BOT_TOKEN;
+    const botToken = getEnvValue("TELEGRAM_BOT_TOKEN");
     if (!botToken) {
       throw new Error("Server configuration missing TELEGRAM_BOT_TOKEN");
     }
@@ -172,7 +177,7 @@ export const loginWithTelegram = mutation({
     initData: v.string(),
   },
   handler: async (ctx, args) => {
-    const botToken = process.env.TELEGRAM_BOT_TOKEN;
+    const botToken = getEnvValue("TELEGRAM_BOT_TOKEN");
     if (!botToken) {
       throw new Error("Server configuration missing TELEGRAM_BOT_TOKEN");
     }

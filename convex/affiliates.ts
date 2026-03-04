@@ -1,7 +1,7 @@
 // convex/affiliates.ts
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
-import { Id } from "./_generated/dataModel";
+import type { Id } from "./_generated/dataModel";
 
 // ── Ethiopia time (UTC+3) — same helper as dashboard.ts ────────────────────
 const ETH_OFFSET_MS = 3 * 60 * 60 * 1000;

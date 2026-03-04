@@ -29,11 +29,7 @@ export type ThreadCategory = 'hot' | 'warm' | 'cold';
 
 // ---- Product Image ----
 
-export interface ProductImage {
-  storageId: string;
-  url?: string;
-  order: 1 | 2 | 3;
-}
+export type ProductImage = string;
 
 // ---- Admin ----
 
@@ -62,6 +58,14 @@ export interface Product {
   exchangeEnabled: boolean;
   description?: string;
   images: ProductImage[];
+  screenSize?: string;
+  battery?: string;
+  mainCamera?: string;
+  selfieCamera?: string;
+  simType?: string;
+  color?: string;
+  operatingSystem?: string;
+  features?: string;
   archivedAt?: number;
   createdAt: number;
   createdBy: string;

@@ -1,6 +1,58 @@
 import { query, mutation } from "./_generated/server";
 import { v } from "convex/values";
 
+const trimImageUrl = (value: unknown): string | null => {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+};
+
+async function normalizeProductImages(
+  ctx: { storage: { getUrl: (id: string) => Promise<string | null> } },
+  images: unknown,
+): Promise<string[]> {
+  if (!Array.isArray(images) || images.length === 0) return [];
+
+  const urls: Array<{ order: number; value: string }> = [];
+  for (let i = 0; i < images.length; i += 1) {
+    const img = images[i];
+    const directUrl = trimImageUrl(img);
+    if (directUrl) {
+      urls.push({ order: i, value: directUrl });
+      continue;
+    }
+
+    if (!img || typeof img !== "object") continue;
+    const legacy = img as { storageId?: string; order?: number; url?: string };
+    if (typeof legacy.storageId !== "string" || legacy.storageId.length === 0) {
+      continue;
+    }
+
+    try {
+      const resolved = await ctx.storage.getUrl(legacy.storageId);
+      const fallback = trimImageUrl(legacy.url);
+      const url = trimImageUrl(resolved) ?? fallback;
+      if (!url) continue;
+      urls.push({
+        order: typeof legacy.order === "number" ? legacy.order : i,
+        value: url,
+      });
+    } catch {
+      const fallback = trimImageUrl(legacy.url);
+      if (!fallback) continue;
+      urls.push({
+        order: typeof legacy.order === "number" ? legacy.order : i,
+        value: fallback,
+      });
+    }
+  }
+
+  return urls
+    .sort((a, b) => a.order - b.order)
+    .map((item) => item.value)
+    .slice(0, 3);
+}
+
 export const getSearchPanelData = query({
   args: {
     limit: v.optional(v.number()),
@@ -73,7 +125,7 @@ export const logSearch = mutation({
     const trimmed = args.term.trim();
     if (!trimmed) return { success: false };
     await ctx.db.insert("searches", {
-      userId: args.userId ?? null,
+      userId: args.userId,
       term: trimmed.toLowerCase(),
       createdAt: Date.now(),
     });
@@ -122,24 +174,25 @@ export const searchProducts = query({
         return tokens.every((token) => searchNormalized.includes(token));
       });
 
-      return filtered.slice(0, limit).map((p: any) => {
-        const mainImageUrl = Array.isArray(p.images) && p.images.length > 0
-          ? p.images[0]
-          : undefined;
+      return Promise.all(
+        filtered.slice(0, limit).map(async (p: any) => {
+          const images = await normalizeProductImages(ctx, p.images);
+          const mainImageUrl = images[0];
 
-        return {
-          _id: p._id,
-          phoneType: p.phoneType ?? undefined,
-          brand: p.brand ?? undefined,
-          model: p.model ?? undefined,
-          storage: p.storage ?? undefined,
-          condition: p.condition ?? undefined,
-          price: p.price,
-          images: p.images ?? [],
-          mainImageUrl,
-          exchange_available: p.exchange_available ?? undefined,
-        };
-      });
+          return {
+            _id: p._id,
+            phoneType: p.phoneType ?? undefined,
+            brand: p.brand ?? undefined,
+            model: p.model ?? undefined,
+            storage: p.storage ?? undefined,
+            condition: p.condition ?? undefined,
+            price: p.price,
+            images,
+            mainImageUrl,
+            exchange_available: p.exchange_available ?? undefined,
+          };
+        }),
+      );
     } catch (err) {
       console.error("Search error:", err);
       return [];

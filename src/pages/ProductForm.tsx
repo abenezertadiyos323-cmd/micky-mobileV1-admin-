@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation } from 'convex/react';
-import { Camera, Archive, RotateCcw } from 'lucide-react';
+import { Camera, Archive, RotateCcw, X } from 'lucide-react';
 import PageHeader from '../components/PageHeader';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { api } from '../../convex/_generated/api';
@@ -44,11 +44,12 @@ interface FormData {
   features: string;
 }
 
-interface PendingImage {
-  blob: Blob;   // processed blob (resized + compressed)
-  order: number;
-  preview: string; // ObjectURL from the processed blob
+interface ImageSlot {
+  preview: string;
+  blob?: Blob;
 }
+
+const IMAGE_SLOT_COUNT = 3;
 
 const formatPriceForInput = (price: number) => price.toLocaleString('en-US');
 
@@ -93,7 +94,9 @@ export default function ProductForm() {
   });
   const [priceText, setPriceText] = useState('');
   const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>({});
-  const [pendingImages, setPendingImages] = useState<PendingImage[]>([]);
+  const [imageSlots, setImageSlots] = useState<Array<ImageSlot | null>>(
+    () => Array.from({ length: IMAGE_SLOT_COUNT }, () => null),
+  );
   const [pickerSlot, setPickerSlot] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const formPopulated = useRef(false);
@@ -126,16 +129,24 @@ export default function ProductForm() {
         stockQuantity: String(existingProduct.stockQuantity),
         exchangeEnabled: existingProduct.type === 'phone' ? existingProduct.exchangeEnabled : false,
         description: existingProduct.description ?? '',
-        screenSize: (existingProduct as any).screenSize ?? '',
-        battery: (existingProduct as any).battery ?? '',
-        mainCamera: (existingProduct as any).mainCamera ?? '',
-        selfieCamera: (existingProduct as any).selfieCamera ?? '',
-        simType: (existingProduct as any).simType ?? '',
-        color: (existingProduct as any).color ?? '',
-        operatingSystem: (existingProduct as any).operatingSystem ?? '',
-        features: (existingProduct as any).features ?? '',
+        screenSize: existingProduct.screenSize ?? '',
+        battery: existingProduct.battery ?? '',
+        mainCamera: existingProduct.mainCamera ?? '',
+        selfieCamera: existingProduct.selfieCamera ?? '',
+        simType: existingProduct.simType ?? '',
+        color: existingProduct.color ?? '',
+        operatingSystem: existingProduct.operatingSystem ?? '',
+        features: existingProduct.features ?? '',
       });
       setPriceText(existingProduct.price > 0 ? formatPriceForInput(existingProduct.price) : '');
+      const existingImages = Array.isArray(existingProduct.images) ? existingProduct.images : [];
+      setImageSlots(
+        Array.from({ length: IMAGE_SLOT_COUNT }, (_, index) => {
+          const url = existingImages[index];
+          if (typeof url !== 'string' || url.trim().length === 0) return null;
+          return { preview: url };
+        }),
+      );
     }
   }, [existingProduct]);
 
@@ -148,43 +159,82 @@ export default function ProductForm() {
 
   // ---- Convex mutations ----
   const generateUploadUrl = useMutation(api.files.generateUploadUrl);
+  const getStorageUrl = useMutation(api.files.getStorageUrl);
   const createProductMutation = useMutation(api.products.createProduct);
   const updateProductMutation = useMutation(api.products.updateProduct);
   const archiveProductMutation = useMutation(api.products.archiveProduct);
   const restoreProductMutation = useMutation(api.products.restoreProduct);
 
   // ---- Image picker ----
-  const handleSlotPress = (slot: number) => {
-    setPickerSlot(slot);
+  const handleSlotPress = (slotIndex: number) => {
+    setPickerSlot(slotIndex);
     fileInputRef.current?.click();
+  };
+
+  const handleRemoveImage = (slotIndex: number) => {
+    setImageSlots((prev) => {
+      const next = [...prev];
+      next[slotIndex] = null;
+      return next;
+    });
+    if (saveError) setSaveError(null);
   };
 
   const handleFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || pickerSlot === null) return;
     e.target.value = '';
-    const slot = pickerSlot; // capture before async
+    const slotIndex = pickerSlot;
     const { blob, previewUrl } = await processImage(file, 1200, 0.8);
-    setPendingImages((prev) => [
-      ...prev.filter((img) => img.order !== slot),
-      { blob, order: slot, preview: previewUrl },
-    ]);
+    setImageSlots((prev) => {
+      const next = [...prev];
+      next[slotIndex] = { blob, preview: previewUrl };
+      return next;
+    });
+    setPickerSlot(null);
   };
 
-  // Upload all pending (already-processed) images to Convex Storage
-  const uploadPendingImages = async (): Promise<Array<{ storageId: Id<'_storage'>; order: number }>> => {
-    const results: Array<{ storageId: Id<'_storage'>; order: number }> = [];
-    for (const pending of pendingImages) {
+  // Upload newly selected images and return URL strings in slot order.
+  const uploadImageUrls = async (): Promise<string[]> => {
+    const uploadedBySlot = new Map<number, string>();
+
+    for (let slotIndex = 0; slotIndex < imageSlots.length; slotIndex += 1) {
+      const slot = imageSlots[slotIndex];
+      if (!slot?.blob) continue;
+
       const uploadUrl = await generateUploadUrl({});
       const resp = await fetch(uploadUrl, {
         method: 'POST',
-        headers: { 'Content-Type': pending.blob.type },
-        body: pending.blob,
+        headers: { 'Content-Type': slot.blob.type },
+        body: slot.blob,
       });
-      const { storageId } = (await resp.json()) as { storageId: string };
-      results.push({ storageId: storageId as Id<'_storage'>, order: pending.order });
+      if (!resp.ok) {
+        throw new Error(`Image ${slotIndex + 1} upload failed`);
+      }
+
+      const { storageId } = (await resp.json()) as { storageId?: string };
+      if (!storageId) {
+        throw new Error(`Image ${slotIndex + 1} upload response missing storageId`);
+      }
+
+      const resolvedUrl = await getStorageUrl({ storageId: storageId as Id<'_storage'> });
+      if (!resolvedUrl || typeof resolvedUrl !== 'string') {
+        throw new Error(`Image ${slotIndex + 1} URL resolution failed`);
+      }
+
+      uploadedBySlot.set(slotIndex, resolvedUrl);
     }
-    return results;
+
+    return imageSlots
+      .map((slot, slotIndex) => {
+        const uploadedUrl = uploadedBySlot.get(slotIndex);
+        if (uploadedUrl) return uploadedUrl;
+        if (!slot || slot.blob) return null;
+        const existingUrl = slot.preview.trim();
+        return existingUrl.length > 0 ? existingUrl : null;
+      })
+      .filter((url): url is string => url !== null)
+      .slice(0, IMAGE_SLOT_COUNT);
   };
 
   // ---- Validation ----
@@ -216,16 +266,7 @@ export default function ProductForm() {
 
     setSaving(true);
     try {
-      // 1. Upload any newly-selected images to Convex Storage
-      const uploaded = await uploadPendingImages();
-
-      // 2. Retain existing stored images for any slots that weren't replaced
-      const replacedOrders = new Set(uploaded.map((img) => img.order));
-      const kept = (existingProduct?.images ?? [])
-        .filter((img) => !replacedOrders.has(img.order))
-        .map((img) => ({ storageId: img.storageId as Id<'_storage'>, order: img.order }));
-
-      const allImages = [...kept, ...uploaded];
+      const allImages = await uploadImageUrls();
 
       const common = {
         type: form.type,
@@ -334,11 +375,10 @@ export default function ProductForm() {
       />
 
         <div className="px-4 py-4 space-y-4" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 24px)' }}>
-          {/* Image Upload — backed by Convex Storage */}
+          {/* Images */}
           <div className="card-interactive p-4 cursor-default">
-            <p className="text-xs font-semibold text-muted uppercase tracking-wide mb-3">Photos (up to 3)</p>
+            <p className="text-xs font-semibold text-muted uppercase tracking-wide mb-3">Images</p>
 
-            {/* Hidden native file picker — opened programmatically per slot */}
             <input
               ref={fileInputRef}
               type="file"
@@ -347,28 +387,40 @@ export default function ProductForm() {
               onChange={handleFileSelected}
             />
 
-            <div className="flex gap-3">
-              {[1, 2, 3].map((n) => {
-                const pending = pendingImages.find((img) => img.order === n);
-                const existing = existingProduct?.images?.find((img) => img.order === n);
-                const displayUrl = pending?.preview ?? existing?.url;
+            <div className="grid grid-cols-3 gap-3">
+              {Array.from({ length: IMAGE_SLOT_COUNT }, (_, slotIndex) => {
+                const displayUrl = imageSlots[slotIndex]?.preview;
                 return (
-                  <button
-                    key={n}
-                    type="button"
-                    onClick={() => handleSlotPress(n)}
-                    className="w-20 h-20 rounded-xl border-2 border-dashed flex items-center justify-center bg-surface-2 overflow-hidden relative active:scale-95 transition-transform border-[var(--border)]"
-                  >
-                    {displayUrl ? (
-                      <img src={displayUrl} alt="" className="w-full h-full object-cover" />
-                    ) : (
-                      <Camera size={20} className="text-muted" />
-                    )}
-                  </button>
+                  <div key={slotIndex} className="space-y-1">
+                    <p className="text-[11px] text-muted font-medium">Upload Image {slotIndex + 1}</p>
+                    <div className="relative">
+                      <button
+                        type="button"
+                        onClick={() => handleSlotPress(slotIndex)}
+                        className="w-full h-20 rounded-xl border-2 border-dashed flex items-center justify-center bg-surface-2 overflow-hidden active:scale-95 transition-transform border-[var(--border)]"
+                      >
+                        {displayUrl ? (
+                          <img src={displayUrl} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                          <Camera size={20} className="text-muted" />
+                        )}
+                      </button>
+                      {displayUrl && (
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveImage(slotIndex)}
+                          className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/70 text-white flex items-center justify-center active:scale-95 transition-transform"
+                          aria-label={`Remove image ${slotIndex + 1}`}
+                        >
+                          <X size={12} />
+                        </button>
+                      )}
+                    </div>
+                  </div>
                 );
               })}
             </div>
-            <p className="text-[11px] text-muted mt-2">Tap a slot to pick an image (max 3)</p>
+            <p className="text-[11px] text-muted mt-2">Upload up to 3 images. Remove any image with the X button.</p>
           </div>
 
           {/* Basic Info */}
@@ -461,81 +513,6 @@ export default function ProductForm() {
                   {errors.condition && <p className="text-xs text-red-500 mt-1">{errors.condition}</p>}
                 </div>
               </>
-            )}
-          </div>
-
-          {/* Pricing & Stock */}
-          <div className="card-interactive p-4 space-y-4 cursor-default">
-            <p className="text-xs font-semibold text-muted uppercase tracking-wide">Pricing & Stock</p>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs font-medium text-app-text mb-1.5 block">Price (ETB) *</label>
-                <input
-                  type="text"
-                  value={priceText}
-                  onChange={(e) => handlePriceChange(e.target.value)}
-                  placeholder="e.g. 85000"
-                  inputMode="numeric"
-                  className={`w-full bg-surface-2 border rounded-xl px-3 py-2.5 text-sm text-app-text placeholder:text-muted outline-none focus:ring-2 focus:ring-indigo-500 transition-colors ${errors.price ? 'border-red-400 bg-red-950/40' : 'border-[var(--border)]'
-                    }`}
-                />
-                {errors.price && <p className="text-xs text-red-500 mt-1">{errors.price}</p>}
-                {form.price !== null && form.price > 0 && (
-                  <p className="text-[11px] text-blue-400 mt-1">{formatETB(form.price)}</p>
-                )}
-              </div>
-              <div>
-                <label className="text-xs font-medium text-app-text mb-1.5 block">Stock Qty *</label>
-                <input
-                  type="number"
-                  value={form.stockQuantity}
-                  onChange={(e) => update('stockQuantity', e.target.value)}
-                  placeholder="e.g. 3"
-                  min="0"
-                  className={`w-full bg-surface-2 border rounded-xl px-3 py-2.5 text-sm text-app-text placeholder:text-muted outline-none focus:ring-2 focus:ring-indigo-500 transition-colors ${errors.stockQuantity ? 'border-red-400 bg-red-950/40' : 'border-[var(--border)]'
-                    }`}
-                />
-                {form.stockQuantity !== '' && (
-                  <p className={`text-[11px] mt-1 font-medium ${stockStatus.color}`}>
-                    {stockStatus.label}
-                  </p>
-                )}
-              </div>
-            </div>
-
-            {/* Exchange Available — segmented pill toggle */}
-            {isPhone && (
-              <div>
-                <p className="text-sm font-semibold text-app-text mb-2">Exchange Available</p>
-                <div className="flex rounded-xl border border-[var(--border)] bg-surface-2 p-1 gap-1">
-                  <button
-                    type="button"
-                    onClick={() => update('exchangeEnabled', false)}
-                    className={`flex-1 py-2 rounded-xl text-sm font-bold transition-all ${!form.exchangeEnabled
-                      ? 'bg-red-500 text-white shadow-sm'
-                      : 'text-muted'
-                      }`}
-                  >
-                    Exchange OFF
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => update('exchangeEnabled', true)}
-                    className={`flex-1 py-2 rounded-xl text-sm font-bold transition-all ${form.exchangeEnabled
-                      ? 'bg-green-500 text-white shadow-sm'
-                      : 'text-muted'
-                      }`}
-                  >
-                    Exchange ON
-                  </button>
-                </div>
-                <p className="text-[11px] text-muted mt-1.5 px-0.5">
-                  {form.exchangeEnabled
-                    ? '✓ Customers can submit trade-in requests for this phone'
-                    : 'This phone is not available for exchange or trade-in'}
-                </p>
-              </div>
             )}
           </div>
 
@@ -639,7 +616,81 @@ export default function ProductForm() {
             </div>
           )}
 
-          {/* Description */}
+          {/* Pricing & Stock */}
+          <div className="card-interactive p-4 space-y-4 cursor-default">
+            <p className="text-xs font-semibold text-muted uppercase tracking-wide">Pricing & Stock</p>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-medium text-app-text mb-1.5 block">Price (ETB) *</label>
+                <input
+                  type="text"
+                  value={priceText}
+                  onChange={(e) => handlePriceChange(e.target.value)}
+                  placeholder="e.g. 85000"
+                  inputMode="numeric"
+                  className={`w-full bg-surface-2 border rounded-xl px-3 py-2.5 text-sm text-app-text placeholder:text-muted outline-none focus:ring-2 focus:ring-indigo-500 transition-colors ${errors.price ? 'border-red-400 bg-red-950/40' : 'border-[var(--border)]'
+                    }`}
+                />
+                {errors.price && <p className="text-xs text-red-500 mt-1">{errors.price}</p>}
+                {form.price !== null && form.price > 0 && (
+                  <p className="text-[11px] text-blue-400 mt-1">{formatETB(form.price)}</p>
+                )}
+              </div>
+              <div>
+                <label className="text-xs font-medium text-app-text mb-1.5 block">Stock Qty *</label>
+                <input
+                  type="number"
+                  value={form.stockQuantity}
+                  onChange={(e) => update('stockQuantity', e.target.value)}
+                  placeholder="e.g. 3"
+                  min="0"
+                  className={`w-full bg-surface-2 border rounded-xl px-3 py-2.5 text-sm text-app-text placeholder:text-muted outline-none focus:ring-2 focus:ring-indigo-500 transition-colors ${errors.stockQuantity ? 'border-red-400 bg-red-950/40' : 'border-[var(--border)]'
+                    }`}
+                />
+                {form.stockQuantity !== '' && (
+                  <p className={`text-[11px] mt-1 font-medium ${stockStatus.color}`}>
+                    {stockStatus.label}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            {/* Exchange Available — segmented pill toggle */}
+            {isPhone && (
+              <div>
+                <p className="text-sm font-semibold text-app-text mb-2">Exchange Available</p>
+                <div className="flex rounded-xl border border-[var(--border)] bg-surface-2 p-1 gap-1">
+                  <button
+                    type="button"
+                    onClick={() => update('exchangeEnabled', false)}
+                    className={`flex-1 py-2 rounded-xl text-sm font-bold transition-all ${!form.exchangeEnabled
+                      ? 'bg-red-500 text-white shadow-sm'
+                      : 'text-muted'
+                      }`}
+                  >
+                    Exchange OFF
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => update('exchangeEnabled', true)}
+                    className={`flex-1 py-2 rounded-xl text-sm font-bold transition-all ${form.exchangeEnabled
+                      ? 'bg-green-500 text-white shadow-sm'
+                      : 'text-muted'
+                      }`}
+                  >
+                    Exchange ON
+                  </button>
+                </div>
+                <p className="text-[11px] text-muted mt-1.5 px-0.5">
+                  {form.exchangeEnabled
+                    ? '✓ Customers can submit trade-in requests for this phone'
+                    : 'This phone is not available for exchange or trade-in'}
+                </p>
+              </div>
+            )}
+          </div>
+{/* Description */}
           <div className="card-interactive p-4 cursor-default">
             <label className="text-xs font-semibold text-muted uppercase tracking-wide mb-3 block">
               Description
@@ -711,3 +762,5 @@ export default function ProductForm() {
     </div>
   );
 }
+
+
