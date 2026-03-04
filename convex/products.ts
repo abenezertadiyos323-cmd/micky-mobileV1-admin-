@@ -379,6 +379,15 @@ export const createProduct = mutation({
     images: v.array(vImageInput),
     createdBy: v.string(),
     updatedBy: v.string(),
+    // Additional phone specifications
+    screenSize: v.optional(v.string()),
+    battery: v.optional(v.string()),
+    mainCamera: v.optional(v.string()),
+    selfieCamera: v.optional(v.string()),
+    simType: v.optional(v.string()),
+    color: v.optional(v.string()),
+    operatingSystem: v.optional(v.string()),
+    features: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
     const now = Date.now();
@@ -413,6 +422,15 @@ export const updateProduct = mutation({
     description: v.optional(v.string()),
     images: v.optional(v.array(vImageInput)),
     updatedBy: v.string(),
+    // Additional phone specifications
+    screenSize: v.optional(v.string()),
+    battery: v.optional(v.string()),
+    mainCamera: v.optional(v.string()),
+    selfieCamera: v.optional(v.string()),
+    simType: v.optional(v.string()),
+    color: v.optional(v.string()),
+    operatingSystem: v.optional(v.string()),
+    features: v.optional(v.string()),
   },
   handler: async (ctx, { productId, updatedBy, ...patch }) => {
     const existing = await ctx.db.get(productId);

@@ -33,6 +33,15 @@ interface FormData {
   stockQuantity: string;
   exchangeEnabled: boolean;
   description: string;
+  // Additional specifications
+  screenSize: string;
+  battery: string;
+  mainCamera: string;
+  selfieCamera: string;
+  simType: string;
+  color: string;
+  operatingSystem: string;
+  features: string;
 }
 
 interface PendingImage {
@@ -73,6 +82,14 @@ export default function ProductForm() {
     stockQuantity: '1',
     exchangeEnabled: false,
     description: '',
+    screenSize: '',
+    battery: '',
+    mainCamera: '',
+    selfieCamera: '',
+    simType: '',
+    color: '',
+    operatingSystem: '',
+    features: '',
   });
   const [priceText, setPriceText] = useState('');
   const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>({});
@@ -109,6 +126,14 @@ export default function ProductForm() {
         stockQuantity: String(existingProduct.stockQuantity),
         exchangeEnabled: existingProduct.type === 'phone' ? existingProduct.exchangeEnabled : false,
         description: existingProduct.description ?? '',
+        screenSize: (existingProduct as any).screenSize ?? '',
+        battery: (existingProduct as any).battery ?? '',
+        mainCamera: (existingProduct as any).mainCamera ?? '',
+        selfieCamera: (existingProduct as any).selfieCamera ?? '',
+        simType: (existingProduct as any).simType ?? '',
+        color: (existingProduct as any).color ?? '',
+        operatingSystem: (existingProduct as any).operatingSystem ?? '',
+        features: (existingProduct as any).features ?? '',
       });
       setPriceText(existingProduct.price > 0 ? formatPriceForInput(existingProduct.price) : '');
     }
@@ -214,6 +239,15 @@ export default function ProductForm() {
         description: form.description || undefined,
         images: allImages,
         updatedBy: String(user.id),
+        // Additional specifications (only send if not empty)
+        screenSize: form.screenSize || undefined,
+        battery: form.battery || undefined,
+        mainCamera: form.mainCamera || undefined,
+        selfieCamera: form.selfieCamera || undefined,
+        simType: form.simType || undefined,
+        color: form.color || undefined,
+        operatingSystem: form.operatingSystem || undefined,
+        features: form.features || undefined,
       };
 
       if (isEdit && id) {
@@ -504,6 +538,106 @@ export default function ProductForm() {
               </div>
             )}
           </div>
+
+          {/* Phone Specifications */}
+          {isPhone && (
+            <div className="card-interactive p-4 space-y-4 cursor-default">
+              <p className="text-xs font-semibold text-muted uppercase tracking-wide">Phone Specifications</p>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-medium text-app-text mb-1.5 block">Screen Size</label>
+                  <input
+                    type="text"
+                    value={form.screenSize}
+                    onChange={(e) => update('screenSize', e.target.value)}
+                    placeholder="e.g. 6.7 inches"
+                    className="w-full bg-surface-2 border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm text-app-text placeholder:text-muted outline-none focus:ring-2 focus:ring-indigo-500 transition-colors"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-app-text mb-1.5 block">Battery</label>
+                  <input
+                    type="text"
+                    value={form.battery}
+                    onChange={(e) => update('battery', e.target.value)}
+                    placeholder="e.g. 3687 mAh"
+                    className="w-full bg-surface-2 border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm text-app-text placeholder:text-muted outline-none focus:ring-2 focus:ring-indigo-500 transition-colors"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-medium text-app-text mb-1.5 block">Main Camera</label>
+                  <input
+                    type="text"
+                    value={form.mainCamera}
+                    onChange={(e) => update('mainCamera', e.target.value)}
+                    placeholder="e.g. Triple 12MP"
+                    className="w-full bg-surface-2 border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm text-app-text placeholder:text-muted outline-none focus:ring-2 focus:ring-indigo-500 transition-colors"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-app-text mb-1.5 block">Selfie Camera</label>
+                  <input
+                    type="text"
+                    value={form.selfieCamera}
+                    onChange={(e) => update('selfieCamera', e.target.value)}
+                    placeholder="e.g. 12MP"
+                    className="w-full bg-surface-2 border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm text-app-text placeholder:text-muted outline-none focus:ring-2 focus:ring-indigo-500 transition-colors"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-medium text-app-text mb-1.5 block">SIM Type</label>
+                  <input
+                    type="text"
+                    value={form.simType}
+                    onChange={(e) => update('simType', e.target.value)}
+                    placeholder="e.g. Single Nano SIM"
+                    className="w-full bg-surface-2 border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm text-app-text placeholder:text-muted outline-none focus:ring-2 focus:ring-indigo-500 transition-colors"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-app-text mb-1.5 block">Color</label>
+                  <input
+                    type="text"
+                    value={form.color}
+                    onChange={(e) => update('color', e.target.value)}
+                    placeholder="e.g. Blue"
+                    className="w-full bg-surface-2 border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm text-app-text placeholder:text-muted outline-none focus:ring-2 focus:ring-indigo-500 transition-colors"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs font-medium text-app-text mb-1.5 block">Operating System</label>
+                  <input
+                    type="text"
+                    value={form.operatingSystem}
+                    onChange={(e) => update('operatingSystem', e.target.value)}
+                    placeholder="e.g. iOS"
+                    className="w-full bg-surface-2 border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm text-app-text placeholder:text-muted outline-none focus:ring-2 focus:ring-indigo-500 transition-colors"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-medium text-app-text mb-1.5 block">Features</label>
+                <textarea
+                  value={form.features}
+                  onChange={(e) => update('features', e.target.value)}
+                  placeholder="e.g. Face ID, NFC, Stereo Speakers"
+                  rows={2}
+                  className="w-full bg-surface-2 border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm text-app-text placeholder:text-muted outline-none focus:ring-2 focus:ring-indigo-500 transition-colors resize-none"
+                />
+              </div>
+            </div>
+          )}
 
           {/* Description */}
           <div className="card-interactive p-4 cursor-default">

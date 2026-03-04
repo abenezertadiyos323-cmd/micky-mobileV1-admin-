@@ -119,6 +119,16 @@ export default defineSchema({
     // Run products:cleanupLegacyBrandModel to remove them from documents, then remove these lines.
     brand: v.optional(v.string()),
     model: v.optional(v.string()),
+
+    // Additional phone specifications (optional)
+    screenSize: v.optional(v.string()),
+    battery: v.optional(v.string()),
+    mainCamera: v.optional(v.string()),
+    selfieCamera: v.optional(v.string()),
+    simType: v.optional(v.string()),
+    color: v.optional(v.string()),
+    operatingSystem: v.optional(v.string()),
+    features: v.optional(v.string()),
   })
     .index("by_type", ["type"])
     .index("by_type_searchNormalized", ["type", "searchNormalized"])
