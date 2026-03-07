@@ -138,7 +138,7 @@ export default function ExchangeDetail() {
           <div className="flex items-center gap-3">
             <div
               className="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold"
-              style={{ background: '#2563EB' }}
+              style={{ background: 'var(--primary)', color: 'var(--primary-foreground)' }}
             >
               {customerName.charAt(0).toUpperCase()}
             </div>
@@ -243,7 +243,7 @@ export default function ExchangeDetail() {
           </div>
           {(exchange.adminOverrideTradeInValue || exchange.adminOverrideDifference) && (
             <div className="mt-3 pt-3" style={{ borderTop: '1px solid var(--border)' }}>
-              <p className="text-[11px] font-medium" style={{ color: '#FCD34D' }}>Admin override applied</p>
+              <p className="text-[11px] font-medium" style={{ color: 'var(--primary)' }}>Admin override applied</p>
               <p className="text-[11px]" style={{ color: 'var(--muted)' }}>
                 Calculated: {formatETB(exchange.calculatedTradeInValue)} trade-in / {formatETB(exchange.calculatedDifference)} difference
               </p>
@@ -271,7 +271,8 @@ export default function ExchangeDetail() {
                 <button
                   onClick={() => handleAction('accept')}
                   disabled={actionLoading}
-                  className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-amber-500 text-white font-semibold text-sm active:scale-[0.98] transition-all disabled:opacity-50"
+                  className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm active:scale-[0.98] transition-all disabled:opacity-50"
+                  style={{ background: 'rgba(245,196,0,0.15)', color: '#F5C400', border: '1px solid rgba(245,196,0,0.4)' }}
                 >
                   <CheckCircle size={16} />
                   Mark Accepted
@@ -281,7 +282,8 @@ export default function ExchangeDetail() {
                 <button
                   onClick={() => handleAction('complete')}
                   disabled={actionLoading}
-                  className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-green-600 text-white font-semibold text-sm active:scale-[0.98] transition-all disabled:opacity-50"
+                  className="w-full flex items-center justify-center gap-2 py-3 rounded-xl font-semibold text-sm active:scale-[0.98] transition-all disabled:opacity-50"
+                  style={{ background: 'rgba(16,185,129,0.12)', color: '#34D399', border: '1px solid rgba(16,185,129,0.3)' }}
                 >
                   <CheckCircle size={16} />
                   Mark Completed

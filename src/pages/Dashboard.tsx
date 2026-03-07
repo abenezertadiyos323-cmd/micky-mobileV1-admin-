@@ -123,7 +123,7 @@ function NotAvailableSection({
             </div>
             <div className="flex items-center gap-1.5">
               <span className="text-sm font-bold" style={{ color: 'var(--text)' }}>{item.totalSignals}</span>
-              <span className="text-xs font-medium text-red-400">not available</span>
+              <span className="text-xs font-medium" style={{ color: 'var(--badge)' }}>not available</span>
             </div>
           </div>
         ))}
