@@ -37,6 +37,7 @@ type AdvancedFilters = {
   priceMin?: number;
   priceMax?: number;
   storageGb?: number;
+  ramGb?: number;
   hasImages?: boolean;
 };
 
@@ -48,6 +49,7 @@ const CONDITIONS: { value: Condition; label: string }[] = [
 ];
 
 const STORAGE_OPTIONS = [64, 128, 256, 512] as const;
+const RAM_OPTIONS = [4, 6, 8, 12] as const;
 
 // Module-level cache: keyed by "type-tab-filters" so each combination feels instant on re-visit.
 const productCache: Partial<Record<string, Product[]>> = {};
@@ -167,6 +169,7 @@ function InventoryContent() {
     advancedFilters.priceMin,
     advancedFilters.priceMax,
     advancedFilters.storageGb,
+    advancedFilters.ramGb,
     advancedFilters.hasImages,
   ].filter((v) => v !== undefined).length;
 
@@ -180,6 +183,7 @@ function InventoryContent() {
     priceMin: advancedFilters.priceMin,
     priceMax: advancedFilters.priceMax,
     storageGb: advancedFilters.storageGb,
+    ramGb: advancedFilters.ramGb,
     hasImages: advancedFilters.hasImages,
   });
   const cached = toSafeProducts(productCache[cacheKey]);
