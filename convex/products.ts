@@ -249,6 +249,8 @@ export const listProducts = query({
     // Storage filter: numeric GB value (e.g. 64, 128, 256, 512).
     // Matched against the storage string field via startsWith.
     storageGb: v.optional(v.number()),
+    // RAM filter: numeric GB value (e.g. 4, 6, 8, 12).
+    ramGb: v.optional(v.number()),
     // Full-text search (unchanged behaviour).
     q: v.optional(v.string()),
     // Legacy params — honoured when tab is absent for backward compatibility.
@@ -257,7 +259,7 @@ export const listProducts = query({
   },
   handler: async (
     ctx,
-    { tab, type, brand, search, condition, priceMin, priceMax, hasImages, storageGb, q,
+    { tab, type, brand, search, condition, priceMin, priceMax, hasImages, storageGb, ramGb, q,
       includeArchived, lowStockOnly },
   ) => {
     const normalizedTab = normalizeTab(tab);
@@ -348,6 +350,10 @@ export const listProducts = query({
     if (storageGb !== undefined) {
       const storageStr = String(storageGb);
       products = products.filter((p) => p.storage?.startsWith(storageStr) ?? false);
+    }
+    if (ramGb !== undefined) {
+      const ramStr = String(ramGb);
+      products = products.filter((p) => p.ram?.startsWith(ramStr) ?? false);
     }
 
     // --- Text search (hard-capped to avoid unbounded in-memory scans) ---
