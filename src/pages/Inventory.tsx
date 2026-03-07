@@ -32,15 +32,6 @@ const FILTER_TABS: { key: InventoryTab; label: string }[] = [
   { key: 'archived', label: 'Archived' },
 ];
 
-type AdvancedFilters = {
-  condition?: Condition;
-  priceMin?: number;
-  priceMax?: number;
-  storageGb?: number;
-  ramGb?: number;
-  hasImages?: boolean;
-};
-
 const CONDITIONS: { value: Condition; label: string }[] = [
   { value: 'Excellent', label: 'Excellent' },
   { value: 'Good', label: 'Good' },
@@ -50,6 +41,18 @@ const CONDITIONS: { value: Condition; label: string }[] = [
 
 const STORAGE_OPTIONS = [64, 128, 256, 512] as const;
 const RAM_OPTIONS = [4, 6, 8, 12] as const;
+
+type SortOption = 'newest' | 'priceLow' | 'priceHigh' | 'stockLow';
+
+type AdvancedFilters = {
+  condition?: Condition;
+  priceMin?: number;
+  priceMax?: number;
+  storageGb?: number;
+  ramGb?: number;
+  hasImages?: boolean;
+  sortBy?: SortOption;
+};
 
 // Module-level cache: keyed by "type-tab-filters" so each combination feels instant on re-visit.
 const productCache: Partial<Record<string, Product[]>> = {};
@@ -171,7 +174,8 @@ function InventoryContent() {
     advancedFilters.storageGb,
     advancedFilters.ramGb,
     advancedFilters.hasImages,
-  ].filter((v) => v !== undefined).length;
+    advancedFilters.sortBy && advancedFilters.sortBy !== 'newest',
+  ].filter((v) => v !== undefined && v !== false).length;
 
   // Convex real-time query — returns undefined on first subscribe or when args change
   const cacheKey = `${activeType}-${tab}-${JSON.stringify(advancedFilters)}`;
@@ -523,30 +527,50 @@ function InventoryContent() {
 
       {/* Product list */}
       <div className="px-4 py-3">
-        {loading ? (
+        {(() => {
+          // Apply sorting to products based on sortBy preference
+          const sortedProducts = (() => {
+            if (!advancedFilters.sortBy || advancedFilters.sortBy === 'newest') {
+              return products; // Already sorted newest-first from backend
+            }
+
+            const sorted = [...products];
+            if (advancedFilters.sortBy === 'priceLow') {
+              sorted.sort((a, b) => (a.price ?? 0) - (b.price ?? 0));
+            } else if (advancedFilters.sortBy === 'priceHigh') {
+              sorted.sort((a, b) => (b.price ?? 0) - (a.price ?? 0));
+            } else if (advancedFilters.sortBy === 'stockLow') {
+              sorted.sort((a, b) => (a.stockQuantity ?? 0) - (b.stockQuantity ?? 0));
+            }
+            return sorted;
+          })();
+
+          return (
+            <>
+              {loading ? (
           // Skeleton — shown only on first ever load (no cache yet)
           <div className="space-y-2">
             {[1, 2, 3, 4, 5].map((n) => (
               <ProductSkeleton key={n} />
             ))}
           </div>
-        ) : products.length === 0 ? (
-          <EmptyState
-            icon={<Package size={28} />}
-            title="No products found"
-            subtitle={
-              committedQ
-                ? `No results for "${committedQ}"`
-                : 'Add your first product using the + button'
-            }
-          />
-        ) : (
-          <div className="space-y-2">
-            <p className="text-xs font-medium mb-2" style={{ color: 'var(--muted)' }}>
-              {products.length} product{products.length !== 1 ? 's' : ''}
-              {tab !== 'all' ? ` · ${FILTER_TABS.find((ft) => ft.key === tab)?.label ?? ''}` : ''}
-            </p>
-            {products.map((product, index) => {
+              ) : products.length === 0 ? (
+                <EmptyState
+                  icon={<Package size={28} />}
+                  title="No products found"
+                  subtitle={
+                    committedQ
+                      ? `No results for "${committedQ}"`
+                      : 'Add your first product using the + button'
+                  }
+                />
+              ) : (
+                <div className="space-y-2">
+                  <p className="text-xs font-medium mb-2" style={{ color: 'var(--muted)' }}>
+                    {sortedProducts.length} product{sortedProducts.length !== 1 ? 's' : ''}
+                    {tab !== 'all' ? ` · ${FILTER_TABS.find((ft) => ft.key === tab)?.label ?? ''}` : ''}
+                  </p>
+                  {sortedProducts.map((product, index) => {
               const productId = getProductId(product);
               const stockQuantity = getProductStock(product);
               const isPending = !!productId && pendingProductIds.has(productId);
@@ -603,9 +627,12 @@ function InventoryContent() {
                   )}
                 </div>
               );
-            })}
-          </div>
-        )}
+                  })}
+                </div>
+              )}
+            </>
+          );
+        })()}
       </div>
 
       {/* Decrement confirmation bottom sheet */}
@@ -730,6 +757,27 @@ function InventoryContent() {
 
             {/* Filter sections */}
             <div className="px-5 space-y-5 max-h-[60vh] overflow-y-auto pb-2">
+
+              {/* Sort */}
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide mb-2" style={{ color: 'var(--muted)' }}>Sort by</p>
+                <select
+                  value={draftFilters.sortBy ?? 'newest'}
+                  onChange={(e) =>
+                    setDraftFilters((prev) => ({
+                      ...prev,
+                      sortBy: e.target.value as SortOption,
+                    }))
+                  }
+                  className="w-full rounded-xl px-3 py-2 text-sm outline-none transition-colors appearance-none"
+                  style={inputStyle}
+                >
+                  <option value="newest">Newest</option>
+                  <option value="priceLow">Price: Low to High</option>
+                  <option value="priceHigh">Price: High to Low</option>
+                  <option value="stockLow">Stock: Low to High</option>
+                </select>
+              </div>
 
               {/* Condition */}
               <div>
