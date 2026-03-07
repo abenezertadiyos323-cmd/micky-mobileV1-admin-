@@ -436,10 +436,11 @@ export default function ProductForm() {
                     <button
                       key={t}
                       onClick={() => update('type', t)}
-                      className={`flex-1 py-2.5 rounded-xl text-sm font-semibold capitalize transition-all ${form.type === t
-                        ? 'bg-indigo-600 text-white shadow-sm'
-                        : 'bg-surface-2 text-muted'
-                        }`}
+                      className="flex-1 py-2.5 rounded-xl text-sm font-semibold capitalize transition-all"
+                      style={form.type === t
+                        ? { background: 'var(--primary)', color: 'var(--primary-foreground)' }
+                        : { background: 'var(--surface-2)', color: 'var(--muted)' }
+                      }
                     >
                       {t}
                     </button>
@@ -458,7 +459,7 @@ export default function ProductForm() {
                 value={form.phoneType}
                 onChange={(e) => update('phoneType', e.target.value)}
                 placeholder={isPhone ? 'e.g. iPhone 13 Pro Max' : 'e.g. AirPods Pro 2nd Gen'}
-                className={`w-full bg-surface-2 border rounded-xl px-3 py-2.5 text-sm text-app-text placeholder:text-muted outline-none focus:ring-2 focus:ring-indigo-500 transition-colors ${errors.phoneType ? 'border-red-400 bg-red-950/40' : 'border-[var(--border)]'
+                className={`w-full bg-surface-2 border rounded-xl px-3 py-2.5 text-sm text-app-text placeholder:text-muted outline-none transition-colors ${errors.phoneType ? 'border-red-400 bg-red-950/40' : 'border-[var(--border)]'
                   }`}
               />
               {errors.phoneType && <p className="text-xs text-red-500 mt-1">{errors.phoneType}</p>}
@@ -475,7 +476,7 @@ export default function ProductForm() {
                       value={form.storage}
                       onChange={(e) => update('storage', e.target.value)}
                       placeholder="e.g. 256GB"
-                      className={`w-full bg-surface-2 border rounded-xl px-3 py-2.5 text-sm text-app-text placeholder:text-muted outline-none focus:ring-2 focus:ring-indigo-500 transition-colors ${errors.storage ? 'border-red-400 bg-red-950/40' : 'border-[var(--border)]'
+                      className={`w-full bg-surface-2 border rounded-xl px-3 py-2.5 text-sm text-app-text placeholder:text-muted outline-none transition-colors ${errors.storage ? 'border-red-400 bg-red-950/40' : 'border-[var(--border)]'
                         }`}
                     />
                     {errors.storage && <p className="text-xs text-red-500 mt-1">{errors.storage}</p>}
@@ -487,7 +488,7 @@ export default function ProductForm() {
                       value={form.ram}
                       onChange={(e) => update('ram', e.target.value)}
                       placeholder="e.g. 8GB"
-                      className="w-full bg-surface-2 border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm text-app-text placeholder:text-muted outline-none focus:ring-2 focus:ring-indigo-500 transition-colors"
+                      className="w-full bg-surface-2 border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm text-app-text placeholder:text-muted outline-none outline-none transition-colors"
                     />
                   </div>
                 </div>
@@ -499,7 +500,7 @@ export default function ProductForm() {
                     value={form.color}
                     onChange={(e) => update('color', e.target.value)}
                     placeholder="e.g. Midnight Black, Space Gray, Gold"
-                    className="w-full bg-surface-2 border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm text-app-text placeholder:text-muted outline-none focus:ring-2 focus:ring-indigo-500 transition-colors"
+                    className="w-full bg-surface-2 border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm text-app-text placeholder:text-muted outline-none outline-none transition-colors"
                   />
                 </div>
 
@@ -511,12 +512,13 @@ export default function ProductForm() {
                       <button
                         key={c}
                         onClick={() => update('condition', c)}
-                        className={`p-2.5 rounded-xl border text-left transition-all ${form.condition === c
-                          ? 'border-indigo-500 bg-indigo-950/60'
-                          : 'border-[var(--border)] bg-surface-2'
-                          }`}
+                        className="p-2.5 rounded-xl border text-left transition-all"
+                      style={form.condition === c
+                        ? { background: 'rgba(245,196,0,0.12)', border: '1px solid var(--primary)' }
+                        : { background: 'var(--surface-2)', border: '1px solid var(--border)' }
+                      }
                       >
-                        <p className={`text-xs font-semibold ${form.condition === c ? 'text-indigo-400' : 'text-app-text'}`}>{c}</p>
+                        <p className="text-xs font-semibold" style={{ color: form.condition === c ? 'var(--primary)' : 'var(--text)' }}>{c}</p>
                         <p className="text-[10px] text-muted mt-0.5">{CONDITION_DESCRIPTIONS[c]}</p>
                       </button>
                     ))}
@@ -540,7 +542,7 @@ export default function ProductForm() {
                     value={form.screenSize}
                     onChange={(e) => update('screenSize', e.target.value)}
                     placeholder="e.g. 6.7 inches"
-                    className="w-full bg-surface-2 border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm text-app-text placeholder:text-muted outline-none focus:ring-2 focus:ring-indigo-500 transition-colors"
+                    className="w-full bg-surface-2 border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm text-app-text placeholder:text-muted outline-none outline-none transition-colors"
                   />
                 </div>
                 <div>
@@ -550,7 +552,7 @@ export default function ProductForm() {
                     value={form.battery}
                     onChange={(e) => update('battery', e.target.value)}
                     placeholder="e.g. 3687 mAh"
-                    className="w-full bg-surface-2 border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm text-app-text placeholder:text-muted outline-none focus:ring-2 focus:ring-indigo-500 transition-colors"
+                    className="w-full bg-surface-2 border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm text-app-text placeholder:text-muted outline-none outline-none transition-colors"
                   />
                 </div>
               </div>
@@ -563,7 +565,7 @@ export default function ProductForm() {
                     value={form.mainCamera}
                     onChange={(e) => update('mainCamera', e.target.value)}
                     placeholder="e.g. Triple 12MP"
-                    className="w-full bg-surface-2 border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm text-app-text placeholder:text-muted outline-none focus:ring-2 focus:ring-indigo-500 transition-colors"
+                    className="w-full bg-surface-2 border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm text-app-text placeholder:text-muted outline-none outline-none transition-colors"
                   />
                 </div>
                 <div>
@@ -573,7 +575,7 @@ export default function ProductForm() {
                     value={form.selfieCamera}
                     onChange={(e) => update('selfieCamera', e.target.value)}
                     placeholder="e.g. 12MP"
-                    className="w-full bg-surface-2 border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm text-app-text placeholder:text-muted outline-none focus:ring-2 focus:ring-indigo-500 transition-colors"
+                    className="w-full bg-surface-2 border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm text-app-text placeholder:text-muted outline-none outline-none transition-colors"
                   />
                 </div>
               </div>
@@ -586,7 +588,7 @@ export default function ProductForm() {
                     value={form.simType}
                     onChange={(e) => update('simType', e.target.value)}
                     placeholder="e.g. Single Nano SIM"
-                    className="w-full bg-surface-2 border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm text-app-text placeholder:text-muted outline-none focus:ring-2 focus:ring-indigo-500 transition-colors"
+                    className="w-full bg-surface-2 border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm text-app-text placeholder:text-muted outline-none outline-none transition-colors"
                   />
                 </div>
                 <div>
@@ -596,7 +598,7 @@ export default function ProductForm() {
                     value={form.operatingSystem}
                     onChange={(e) => update('operatingSystem', e.target.value)}
                     placeholder="e.g. iOS 17, Android 14"
-                    className="w-full bg-surface-2 border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm text-app-text placeholder:text-muted outline-none focus:ring-2 focus:ring-indigo-500 transition-colors"
+                    className="w-full bg-surface-2 border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm text-app-text placeholder:text-muted outline-none outline-none transition-colors"
                   />
                 </div>
               </div>
@@ -608,7 +610,7 @@ export default function ProductForm() {
                   onChange={(e) => update('features', e.target.value)}
                   placeholder="e.g. Face ID, NFC, Stereo Speakers"
                   rows={2}
-                  className="w-full bg-surface-2 border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm text-app-text placeholder:text-muted outline-none focus:ring-2 focus:ring-indigo-500 transition-colors resize-none"
+                  className="w-full bg-surface-2 border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm text-app-text placeholder:text-muted outline-none outline-none transition-colors resize-none"
                 />
               </div>
             </div>
@@ -627,12 +629,12 @@ export default function ProductForm() {
                   onChange={(e) => handlePriceChange(e.target.value)}
                   placeholder="e.g. 85000"
                   inputMode="numeric"
-                  className={`w-full bg-surface-2 border rounded-xl px-3 py-2.5 text-sm text-app-text placeholder:text-muted outline-none focus:ring-2 focus:ring-indigo-500 transition-colors ${errors.price ? 'border-red-400 bg-red-950/40' : 'border-[var(--border)]'
+                  className={`w-full bg-surface-2 border rounded-xl px-3 py-2.5 text-sm text-app-text placeholder:text-muted outline-none transition-colors ${errors.price ? 'border-red-400 bg-red-950/40' : 'border-[var(--border)]'
                     }`}
                 />
                 {errors.price && <p className="text-xs text-red-500 mt-1">{errors.price}</p>}
                 {form.price !== null && form.price > 0 && (
-                  <p className="text-[11px] text-blue-400 mt-1">{formatETB(form.price)}</p>
+                  <p className="text-[11px] mt-1" style={{ color: 'var(--primary)' }}>{formatETB(form.price)}</p>
                 )}
               </div>
               <div>
@@ -643,7 +645,7 @@ export default function ProductForm() {
                   onChange={(e) => update('stockQuantity', e.target.value)}
                   placeholder="e.g. 3"
                   min="0"
-                  className={`w-full bg-surface-2 border rounded-xl px-3 py-2.5 text-sm text-app-text placeholder:text-muted outline-none focus:ring-2 focus:ring-indigo-500 transition-colors ${errors.stockQuantity ? 'border-red-400 bg-red-950/40' : 'border-[var(--border)]'
+                  className={`w-full bg-surface-2 border rounded-xl px-3 py-2.5 text-sm text-app-text placeholder:text-muted outline-none transition-colors ${errors.stockQuantity ? 'border-red-400 bg-red-950/40' : 'border-[var(--border)]'
                     }`}
                 />
                 {form.stockQuantity !== '' && (
@@ -662,20 +664,22 @@ export default function ProductForm() {
                   <button
                     type="button"
                     onClick={() => update('exchangeEnabled', false)}
-                    className={`flex-1 py-2 rounded-xl text-sm font-bold transition-all ${!form.exchangeEnabled
-                      ? 'bg-red-500 text-white shadow-sm'
-                      : 'text-muted'
-                      }`}
+                    className="flex-1 py-2 rounded-xl text-sm font-bold transition-all"
+                    style={!form.exchangeEnabled
+                      ? { background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--muted)' }
+                      : { color: 'var(--muted)' }
+                    }
                   >
                     Exchange OFF
                   </button>
                   <button
                     type="button"
                     onClick={() => update('exchangeEnabled', true)}
-                    className={`flex-1 py-2 rounded-xl text-sm font-bold transition-all ${form.exchangeEnabled
-                      ? 'bg-green-500 text-white shadow-sm'
-                      : 'text-muted'
-                      }`}
+                    className="flex-1 py-2 rounded-xl text-sm font-bold transition-all"
+                    style={form.exchangeEnabled
+                      ? { background: 'var(--primary)', color: 'var(--primary-foreground)' }
+                      : { color: 'var(--muted)' }
+                    }
                   >
                     Exchange ON
                   </button>
@@ -699,7 +703,7 @@ export default function ProductForm() {
               onChange={(e) => update('description', e.target.value)}
               placeholder="e.g. Comes with original box and charger. Minor scratch on the back."
               rows={3}
-              className="w-full bg-surface-2 border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm text-app-text placeholder:text-muted outline-none focus:ring-2 focus:ring-indigo-500 transition-colors resize-none"
+              className="w-full bg-surface-2 border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm text-app-text placeholder:text-muted outline-none outline-none transition-colors resize-none"
             />
           </div>
 
@@ -715,7 +719,8 @@ export default function ProductForm() {
             type="button"
             onClick={handleSave}
             disabled={saving}
-            className="w-full py-4 bg-indigo-600 text-white font-semibold btn-interactive rounded-xl shadow-sm disabled:opacity-50"
+            className="w-full py-4 font-semibold btn-interactive rounded-xl shadow-sm disabled:opacity-50"
+            style={{ background: 'var(--primary)', color: 'var(--primary-foreground)' }}
           >
             {saving ? 'Saving…' : isEdit ? 'Save Changes' : `Add ${form.type === 'phone' ? 'Phone' : 'Accessory'}`}
           </button>
