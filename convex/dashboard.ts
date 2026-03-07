@@ -173,13 +173,20 @@ export const getHomeMetrics = query({
     ).length;
 
     // 2. Low stock products
+    const adminSettingsDocs = await ctx.db.query("adminSettings").collect();
+    const adminSettings = adminSettingsDocs[0] ?? null;
     const allProducts = await ctx.db
       .query("products")
       .withIndex("by_isArchived_createdAt", (q) => q.eq("isArchived", false))
       .collect();
-    const lowStock = allProducts.filter(
-      (p) => p.lowStockThreshold != null && p.stockQuantity <= p.lowStockThreshold
-    ).length;
+    const lowStock = allProducts.filter((p) => {
+      const threshold =
+        p.lowStockThreshold ??
+        (p.type === "phone"
+          ? (adminSettings?.phoneLowStockThreshold ?? 2)
+          : (adminSettings?.accessoryLowStockThreshold ?? 2));
+      return p.stockQuantity > 0 && p.stockQuantity <= threshold;
+    }).length;
 
     // 3. Reply speed ratio today vs yesterday (>1.3x = noticeably slower)
     const replySlowRatio =

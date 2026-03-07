@@ -150,6 +150,29 @@ async function normalizeImageUrls(
 
 const LOW_STOCK_THRESHOLD = 2;
 
+type AdminSettings = {
+  phoneLowStockThreshold?: number;
+  accessoryLowStockThreshold?: number;
+};
+
+/**
+ * Resolve the effective low-stock threshold for a product.
+ * Priority: per-product field → admin setting for that type → default 2.
+ */
+function resolveThreshold(
+  p: { lowStockThreshold?: number; type: string },
+  settings: AdminSettings | null,
+): number {
+  if (p.lowStockThreshold != null) return p.lowStockThreshold;
+  if (settings) {
+    if (p.type === "phone" && settings.phoneLowStockThreshold != null)
+      return settings.phoneLowStockThreshold;
+    if (p.type === "accessory" && settings.accessoryLowStockThreshold != null)
+      return settings.accessoryLowStockThreshold;
+  }
+  return LOW_STOCK_THRESHOLD;
+}
+
 /**
  * Public query used by the customer mini app.
  * Returns all non-archived products with images as URL strings.
@@ -262,6 +285,9 @@ export const listProducts = query({
     { tab, type, brand, search, condition, priceMin, priceMax, hasImages, storageGb, ramGb, q,
       includeArchived, lowStockOnly },
   ) => {
+    const adminSettingsDocs = await ctx.db.query("adminSettings").collect();
+    const adminSettings: AdminSettings = adminSettingsDocs[0] ?? null;
+
     const normalizedTab = normalizeTab(tab);
     const resolvedType = normalizeType(type);
     const includeArchivedLegacy = !tab && includeArchived === true;
@@ -322,7 +348,7 @@ export const listProducts = query({
       products = products.filter(
         (p) =>
           p.stockQuantity > 0 &&
-          p.stockQuantity <= (p.lowStockThreshold ?? LOW_STOCK_THRESHOLD),
+          p.stockQuantity <= resolveThreshold(p, adminSettings),
       );
     } else if (normalizedTab === "exchange") {
       products = products.filter((p) => p.exchangeEnabled === true);
@@ -331,7 +357,7 @@ export const listProducts = query({
 
     // Legacy lowStockOnly (honoured only when tab is absent).
     if (!tab && lowStockOnly) {
-      products = products.filter((p) => p.stockQuantity <= 2);
+      products = products.filter((p) => p.stockQuantity <= resolveThreshold(p, adminSettings));
     }
 
     // --- Advanced filters (applied in-memory after index fetch) ---
