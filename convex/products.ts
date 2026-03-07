@@ -556,6 +556,17 @@ export const restoreProduct = mutation({
 });
 
 /**
+ * Hard-delete a product permanently. Only call this on archived products.
+ * This is irreversible — removes the document entirely from the database.
+ */
+export const permanentDeleteProduct = mutation({
+  args: { productId: v.id("products") },
+  handler: async (ctx, { productId }) => {
+    await ctx.db.delete(productId);
+  },
+});
+
+/**
  * One-time backfill: compute and store searchText for every product that
  * doesn't have it yet (i.e. created before this field was introduced).
  * Run once from the Convex dashboard: call products:backfillSearchText with {}.

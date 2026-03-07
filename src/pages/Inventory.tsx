@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useMutation, useQuery } from 'convex/react';
 import { ErrorBoundary } from 'react-error-boundary';
-import { Package, Search, X, Loader2, SlidersHorizontal } from 'lucide-react';
+import { Package, Search, X, Loader2, SlidersHorizontal, Trash2 } from 'lucide-react';
 import ProductCard from '../components/ProductCard';
 import EmptyState from '../components/EmptyState';
 import { api } from '../../convex/_generated/api';
@@ -158,6 +158,8 @@ function InventoryContent() {
   const [drawerOpen, setDrawerOpen] = useState(false);
 
   const updateStockQuantity = useMutation(api.products.updateStockQuantity);
+  const permanentDeleteProduct = useMutation(api.products.permanentDeleteProduct);
+  const [confirmDeleteProduct, setConfirmDeleteProduct] = useState<Product | null>(null);
 
   // Number of active advanced filters — drives the indicator dot on the filter icon
   const activeFilterCount = [
@@ -341,6 +343,21 @@ function InventoryContent() {
     const productId = getProductId(confirmDecrementProduct);
     setConfirmDecrementProduct(null);
     void updateProductStock(productId, -1);
+  };
+
+  const handleDeleteRequest = (product: Product) => {
+    setConfirmDeleteProduct(product);
+  };
+  const handleConfirmDelete = async () => {
+    if (!confirmDeleteProduct) return;
+    const productId = getProductId(confirmDeleteProduct);
+    if (!productId) return;
+    setConfirmDeleteProduct(null);
+    try {
+      await permanentDeleteProduct({ productId: productId as Id<'products'> });
+    } catch (err) {
+      console.error('[Inventory] permanentDelete failed', err);
+    }
   };
 
   const showHistoryChips = searchFocused && !searchQuery && safeSearchHistory.length > 0;
@@ -541,29 +558,45 @@ function InventoryContent() {
                       navigate(`/inventory/${productId}?type=${activeType}`);
                     }}
                   />
-                  <div className="flex items-center justify-end gap-2 px-2">
-                    <button
-                      type="button"
-                      onClick={() => handleDecrementRequest(product)}
-                      disabled={stockQuantity === 0 || isPending}
-                      className="w-8 h-8 rounded-lg text-base font-bold leading-none active:scale-95 transition-transform disabled:opacity-40 disabled:active:scale-100"
-                      style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }}
-                    >
-                      -
-                    </button>
-                    <span className="w-7 text-center text-sm font-semibold" style={{ color: 'var(--text)' }}>
-                      {stockQuantity}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => handleIncrement(product)}
-                      disabled={isPending}
-                      className="w-8 h-8 rounded-lg text-base font-bold leading-none active:scale-95 transition-transform disabled:opacity-40 disabled:active:scale-100"
-                      style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }}
-                    >
-                      +
-                    </button>
-                  </div>
+                  {tab === 'archived' ? (
+                    /* Archived: show permanent delete action instead of stock controls */
+                    <div className="flex items-center justify-end px-2">
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteRequest(product)}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold active:scale-95 transition-transform"
+                        style={{ background: 'rgba(239,68,68,0.12)', color: '#EF4444', border: '1px solid rgba(239,68,68,0.25)' }}
+                      >
+                        <Trash2 size={13} />
+                        Delete permanently
+                      </button>
+                    </div>
+                  ) : (
+                    /* All other tabs: show stock controls */
+                    <div className="flex items-center justify-end gap-2 px-2">
+                      <button
+                        type="button"
+                        onClick={() => handleDecrementRequest(product)}
+                        disabled={stockQuantity === 0 || isPending}
+                        className="w-8 h-8 rounded-lg text-base font-bold leading-none active:scale-95 transition-transform disabled:opacity-40 disabled:active:scale-100"
+                        style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }}
+                      >
+                        -
+                      </button>
+                      <span className="w-7 text-center text-sm font-semibold" style={{ color: 'var(--text)' }}>
+                        {stockQuantity}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleIncrement(product)}
+                        disabled={isPending}
+                        className="w-8 h-8 rounded-lg text-base font-bold leading-none active:scale-95 transition-transform disabled:opacity-40 disabled:active:scale-100"
+                        style={{ border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)' }}
+                      >
+                        +
+                      </button>
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -573,7 +606,7 @@ function InventoryContent() {
 
       {/* Decrement confirmation bottom sheet */}
       {confirmDecrementProduct && (
-        <div className="fixed inset-0 z-50 flex items-end bg-black/40">
+        <div className="fixed inset-0 z-[60] flex items-end bg-black/40">
           <div
             className="rounded-t-3xl w-full p-5 animate-in slide-in-from-bottom duration-200"
             style={{
@@ -603,6 +636,56 @@ function InventoryContent() {
                 style={{ background: 'var(--primary)', color: 'var(--primary-foreground)' }}
               >
                 Yes
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Permanent delete confirmation bottom sheet */}
+      {confirmDeleteProduct && (
+        <div className="fixed inset-0 z-[60] flex items-end bg-black/50">
+          <div
+            className="rounded-t-3xl w-full p-5 animate-in slide-in-from-bottom duration-200"
+            style={{
+              background: 'var(--surface)',
+              paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 20px)',
+            }}
+          >
+            <div className="w-10 h-1 rounded-full mx-auto mb-4" style={{ background: 'var(--border)' }} />
+            <div
+              className="w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-3"
+              style={{ background: 'rgba(239,68,68,0.12)' }}
+            >
+              <Trash2 size={22} style={{ color: '#EF4444' }} />
+            </div>
+            <h2 className="text-base font-bold text-center mb-1" style={{ color: 'var(--text)' }}>
+              Delete this product permanently?
+            </h2>
+            <p className="text-xs text-center mb-1" style={{ color: 'var(--muted)' }}>
+              {typeof confirmDeleteProduct.phoneType === 'string' && confirmDeleteProduct.phoneType.trim()
+                ? confirmDeleteProduct.phoneType
+                : 'Unnamed product'}
+            </p>
+            <p className="text-xs text-center mb-5" style={{ color: '#EF4444' }}>
+              This cannot be undone.
+            </p>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setConfirmDeleteProduct(null)}
+                className="flex-1 py-3 rounded-xl font-semibold text-sm active:scale-95 transition-transform"
+                style={{ border: '1px solid var(--border)', color: 'var(--muted)' }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleConfirmDelete()}
+                className="flex-1 py-3 rounded-xl font-semibold text-sm active:scale-95 transition-transform"
+                style={{ background: '#EF4444', color: '#ffffff' }}
+              >
+                Delete
               </button>
             </div>
           </div>

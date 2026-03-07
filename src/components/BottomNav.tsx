@@ -58,13 +58,9 @@ export default function BottomNav() {
                       count={badge}
                       pop={pop}
                       style={{
-                        position:  'absolute',
-                        top:       '-3px',
-                        right:     badge >= 10 ? '-7px' : '-5px',
-                        fontSize:  '9px',
-                        height:    '15px',
-                        minWidth:  badge >= 10 ? 'auto' : '15px',
-                        padding:   badge >= 10 ? '0 4px' : '0',
+                        position:      'absolute',
+                        top:           '-5px',
+                        right:         badge >= 10 ? '-9px' : '-6px',
                         pointerEvents: 'none',
                       }}
                     />

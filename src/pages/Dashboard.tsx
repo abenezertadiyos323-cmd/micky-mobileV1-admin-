@@ -168,7 +168,7 @@ function RestockModal({
 
   return (
     <div
-      className="fixed inset-0 bg-black/60 z-50 flex items-end"
+      className="fixed inset-0 bg-black/60 z-[60] flex items-end"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -329,7 +329,7 @@ function ContentPlanModal({
 
   return (
     <div
-      className="fixed inset-0 bg-black/60 z-50 flex items-end"
+      className="fixed inset-0 bg-black/60 z-[60] flex items-end"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -438,7 +438,7 @@ function AffiliatesModal({
 
   return (
     <div
-      className="fixed inset-0 bg-black/60 z-50 flex items-end"
+      className="fixed inset-0 bg-black/60 z-[60] flex items-end"
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
