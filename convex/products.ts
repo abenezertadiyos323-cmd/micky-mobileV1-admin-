@@ -43,8 +43,8 @@ function buildSearchText(p: {
 
 /**
  * Build a normalized, lowercase search field for indexed prefix queries.
- * Same normalization as buildSearchText but used for the indexed searchNormalized field.
- * Enables efficient prefix-based searches like "iphone 13" → matches "iPhone 13 256GB Good".
+ * Removes ALL spaces to enable flexible matching: "iphone17" matches "iphone 17" and vice versa.
+ * Used during product creation/update to build the searchNormalized field.
  */
 function buildSearchNormalized(p: {
   phoneType?: string;
@@ -56,7 +56,7 @@ function buildSearchNormalized(p: {
     .filter((s): s is string => typeof s === "string" && s.length > 0)
     .join(" ")
     .toLowerCase()
-    .replace(/\s+/g, " ")
+    .replace(/\s+/g, "") // Remove ALL spaces for flexible matching
     .trim();
 }
 
@@ -353,9 +353,12 @@ export const listProducts = query({
     // --- Text search (hard-capped to avoid unbounded in-memory scans) ---
     if (normalizedSearch) {
       const candidates = products.slice(0, 300);
+      // Remove spaces from search query to match flexible search: "iphone17" matches "iphone 17"
+      const normalizedQueryNoSpaces = normalizedSearch.replace(/\s+/g, "");
       products = candidates.filter((p) => {
-        const st = p.searchText ?? (p.phoneType ? p.phoneType.toLowerCase() : "");
-        return st.includes(normalizedSearch);
+        // Compare space-removed versions: searchNormalized has spaces removed, so does query
+        const st = (p.searchNormalized ?? p.phoneType ?? "").toLowerCase().replace(/\s+/g, "");
+        return st.includes(normalizedQueryNoSpaces);
       });
     }
 
