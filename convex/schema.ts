@@ -22,6 +22,15 @@ const Condition = v.union(
   v.literal("Poor")
 );
 
+const StorageOption = v.union(
+  v.literal("32GB"),
+  v.literal("64GB"),
+  v.literal("128GB"),
+  v.literal("256GB"),
+  v.literal("512GB"),
+  v.literal("1TB")
+);
+
 const ThreadStatus = v.union(
   v.literal("new"),
   v.literal("seen"),
@@ -95,6 +104,7 @@ export default defineSchema({
 
     ram: v.optional(v.string()),
     storage: v.optional(v.string()),
+    storageOptions: v.optional(v.array(StorageOption)),
     condition: v.optional(Condition),
 
     price: v.number(),
@@ -115,6 +125,7 @@ export default defineSchema({
     createdBy: v.string(),
     updatedAt: v.number(),
     updatedBy: v.string(),
+    sellerId: v.string(),
 
     // Normalized search field: lowercase phoneType + storage + ram + condition.
     // Optional so legacy rows remain valid until backfillSearchNormalized is run.
@@ -358,9 +369,7 @@ export default defineSchema({
   /* =========================
      SESSIONS
   ========================= */
-  sessions: defineTable({
-    createdAt: v.number(),
-  }),
+  sessions: defineTable(v.any()).index("by_customer_chat", ["customer_id", "chat_id"]),
 
   /* =========================
      CUSTOMERS
@@ -461,6 +470,125 @@ export default defineSchema({
     .index("by_createdAt", ["createdAt"]),
 
   /* =========================
+     N8N BOT WORKFLOW SESSIONS
+  ========================= */
+  botWorkflowSessions: defineTable({
+    sellerId: v.string(),
+    chatId: v.string(),
+    stage: v.string(),
+    activeFlow: v.string(),
+    followupRound: v.number(),
+    collectedFields: v.any(),
+    shownOptions: v.optional(v.any()),
+    language: v.string(),
+    createdAt: v.string(),
+    updatedAt: v.string(),
+  })
+    .index("by_chatId", ["chatId"])
+    .index("by_sellerId_and_chatId", ["sellerId", "chatId"]),
+
+  /* =========================
+     N8N BOT LEADS
+  ========================= */
+  botLeads: defineTable({
+    sellerId: v.string(),
+    chatId: v.string(),
+    username: v.optional(v.string()),
+    name: v.optional(v.string()),
+    phoneNumber: v.optional(v.string()),
+    customer_goal: v.optional(v.string()),
+    phoneType: v.optional(v.string()),
+    source: v.optional(v.string()),
+    stage: v.optional(v.string()),
+    summary: v.optional(v.string()),
+    createdAt: v.string(),
+    updatedAt: v.string(),
+  })
+    .index("by_sellerId_and_chatId", ["sellerId", "chatId"])
+    .index("by_updatedAt", ["updatedAt"]),
+
+  /* =========================
+     N8N ORDER INQUIRIES
+  ========================= */
+  botOrderInquiries: defineTable({
+    sellerId: v.string(),
+    chatId: v.string(),
+    username: v.optional(v.string()),
+    phoneType: v.optional(v.string()),
+    selected_option: v.optional(v.string()),
+    inquiry_type: v.optional(v.string()),
+    summary: v.optional(v.string()),
+    createdAt: v.string(),
+  })
+    .index("by_sellerId_and_chatId", ["sellerId", "chatId"])
+    .index("by_createdAt", ["createdAt"]),
+
+  /* =========================
+     N8N EXCHANGE SUBMISSIONS
+  ========================= */
+  botExchangeSubmissions: defineTable({
+    sellerId: v.string(),
+    chatId: v.string(),
+    username: v.optional(v.string()),
+    phoneType: v.optional(v.string()),
+    storage: v.optional(v.string()),
+    ram: v.optional(v.string()),
+    simType: v.optional(v.string()),
+    battery: v.optional(v.string()),
+    condition: v.optional(v.string()),
+    defects: v.optional(v.string()),
+    target_phone: v.optional(v.string()),
+    stage: v.optional(v.string()),
+    createdAt: v.string(),
+    updatedAt: v.string(),
+  })
+    .index("by_sellerId_and_chatId", ["sellerId", "chatId"])
+    .index("by_updatedAt", ["updatedAt"]),
+
+  /* =========================
+     N8N ADMIN INBOX RECORDS
+  ========================= */
+  botInboxRecords: defineTable({
+    sellerId: v.string(),
+    chatId: v.string(),
+    username: v.optional(v.string()),
+    name: v.optional(v.string()),
+    phoneNumber: v.optional(v.string()),
+    customer_goal: v.optional(v.string()),
+    phoneType: v.optional(v.string()),
+    target_phone: v.optional(v.string()),
+    summary: v.optional(v.string()),
+    stage: v.optional(v.string()),
+    priority: v.optional(v.string()),
+    tab: v.optional(v.string()),
+    source: v.optional(v.string()),
+    status: v.optional(v.string()),
+    createdAt: v.string(),
+    updatedAt: v.string(),
+  })
+    .index("by_sellerId_and_chatId", ["sellerId", "chatId"])
+    .index("by_status_and_updatedAt", ["status", "updatedAt"]),
+
+  /* =========================
+     N8N NOTIFY INTENTS
+  ========================= */
+  botNotifyRequests: defineTable({
+    sellerId: v.string(),
+    chatId: v.string(),
+    username: v.optional(v.string()),
+    requested_phone: v.string(),
+    notify_when_available: v.boolean(),
+    createdAt: v.string(),
+    updatedAt: v.string(),
+  })
+    .index("by_requested_phone", ["requested_phone"])
+    .index("by_sellerId_chatId_requested_phone", [
+      "sellerId",
+      "chatId",
+      "requested_phone",
+    ]),
+
+  /* =========================
      ADMIN SETTINGS
   ========================= */
   adminSettings: defineTable({
@@ -471,6 +599,59 @@ export default defineSchema({
     accessoryLowStockThreshold: v.optional(v.number()),
     exchangeAlertsEnabled: v.optional(v.boolean()),
     inboxAlertsEnabled: v.optional(v.boolean()),
+    storeAddress: v.optional(v.string()),
+    storeLocationLink: v.optional(v.string()),
+    warrantyPolicy: v.optional(v.string()),
+    exchangeRules: v.optional(v.string()),
     updatedAt: v.number(),
   }),
+
+  /* =========================
+     BOT THREADS
+     Durable bot-only per-chat state for the Telegram sales workflow.
+  ========================= */
+  botThreads: defineTable({
+    chatId: v.string(),
+    telegramUserId: v.string(),
+    username: v.optional(v.string()),
+    firstName: v.optional(v.string()),
+    lastMessageAt: v.number(),
+    firstMessageAt: v.number(),
+    messageCount: v.number(),
+    recentMessages: v.array(
+      v.object({
+        role: v.union(v.literal("user"), v.literal("assistant")),
+        content: v.string(),
+        timestamp: v.number(),
+      }),
+    ),
+    intake: v.optional(
+      v.object({
+        flow: v.union(v.literal("sell"), v.literal("exchange")),
+        status: v.union(
+          v.literal("start"),
+          v.literal("in_progress"),
+          v.literal("complete"),
+        ),
+        data: v.object({
+          offered_model: v.optional(v.string()),
+          offered_storage: v.optional(v.string()),
+          offered_condition: v.optional(
+            v.union(
+              v.literal("new"),
+              v.literal("good"),
+              v.literal("fair"),
+              v.literal("poor"),
+            ),
+          ),
+          asking_price: v.optional(v.number()),
+          desired_product_id: v.optional(v.string()),
+          desired_product_name: v.optional(v.string()),
+          customer_notes: v.optional(v.string()),
+        }),
+        last_updated_at: v.number(),
+        write_key: v.string(),
+      }),
+    ),
+  }).index("by_chatId", ["chatId"]),
 });

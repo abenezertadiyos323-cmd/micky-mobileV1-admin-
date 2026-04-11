@@ -13,12 +13,12 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ConvexProvider client={convex}>
       <ErrorBoundary
-        fallbackRender={() => (
+        fallbackRender={({ error }) => (
           <div className="min-h-screen bg-bg flex items-center justify-center p-6">
             <div className="w-full max-w-sm bg-surface border border-[var(--border)] rounded-2xl p-5 text-center shadow-sm">
-              <h1 className="text-lg font-semibold text-app-text mb-2">Something went wrong</h1>
-              <p className="text-sm text-muted mb-4">
-                Please refresh. If it keeps happening, contact support.
+              <h1 className="text-lg font-semibold text-app-text mb-2">App Crashed</h1>
+              <p className="text-sm text-red-500 mb-4 p-2 bg-red-50 border border-red-200 rounded text-left overflow-auto max-h-48 whitespace-pre-wrap">
+                {String(error?.message || error)}
               </p>
               <button
                 type="button"
