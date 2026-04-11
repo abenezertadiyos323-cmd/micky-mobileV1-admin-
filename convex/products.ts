@@ -490,6 +490,7 @@ export const createProduct = mutation({
     images: v.array(vImageInput),
     createdBy: v.string(),
     updatedBy: v.string(),
+    sellerId: v.string(),
     // Additional phone specifications
     screenSize: v.optional(v.string()),
     battery: v.optional(v.string()),

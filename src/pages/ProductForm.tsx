@@ -294,6 +294,7 @@ export default function ProductForm() {
     try {
       const allImages = await uploadImageUrls();
       const storageDisplay = formatPhoneStorageDisplay(form.storageOptions);
+      const sellerId = String(user.id);
 
       const common = {
         type: form.type,
@@ -309,7 +310,7 @@ export default function ProductForm() {
         exchangeEnabled: form.type === 'phone' ? form.exchangeEnabled : false,
         description: form.description || undefined,
         images: allImages,
-        updatedBy: String(user.id),
+        updatedBy: sellerId,
         // Additional specifications (only send if not empty)
         screenSize: form.screenSize || undefined,
         battery: form.battery || undefined,
@@ -324,7 +325,7 @@ export default function ProductForm() {
       if (isEdit && id) {
         await updateProductMutation({ productId: id as Id<'products'>, ...common });
       } else {
-        await createProductMutation({ ...common, createdBy: String(user.id) });
+        await createProductMutation({ ...common, createdBy: sellerId, sellerId });
       }
       navigate(getInventoryPath());
     } catch (err) {
