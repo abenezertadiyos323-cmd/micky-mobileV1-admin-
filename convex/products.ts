@@ -3,6 +3,7 @@
 
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+import { hasStorageGb, normalizeProductStorage } from "./lib/productStorage";
 
 // ---- Shared validators (mirrors schema enums) ----
 
@@ -15,6 +16,15 @@ const vCondition = v.union(
   v.literal("Good"),
   v.literal("Fair"),
   v.literal("Poor"),
+);
+
+const vStorageOption = v.union(
+  v.literal("32GB"),
+  v.literal("64GB"),
+  v.literal("128GB"),
+  v.literal("256GB"),
+  v.literal("512GB"),
+  v.literal("1TB"),
 );
 
 type ProductType = "phone" | "accessory";
@@ -193,9 +203,15 @@ export const listAllProducts = query({
       return Promise.all(
         products.map(async (p) => {
           const images = await normalizeImageUrls(ctx, p.images);
+          const normalizedStorage = normalizeProductStorage({
+            storage: p.storage,
+            storageOptions: p.storageOptions,
+          });
 
           return {
             ...p,
+            storage: normalizedStorage.storage,
+            storageOptions: normalizedStorage.storageOptions,
             images,
             // Customer-app field aliases:
             name: p.phoneType ?? "",        // mapToProductVM reads raw.name → brand/model
@@ -374,8 +390,12 @@ export const listProducts = query({
     if (priceMax !== undefined) products = products.filter((p) => p.price <= priceMax);
     if (hasImages) products = products.filter((p) => Array.isArray(p.images) && p.images.length > 0);
     if (storageGb !== undefined) {
-      const storageStr = String(storageGb);
-      products = products.filter((p) => p.storage?.startsWith(storageStr) ?? false);
+      products = products.filter((p) =>
+        hasStorageGb(storageGb, {
+          storage: p.storage,
+          storageOptions: p.storageOptions,
+        }),
+      );
     }
     if (ramGb !== undefined) {
       const ramStr = String(ramGb);
@@ -399,9 +419,27 @@ export const listProducts = query({
     return Promise.all(
       products.map(async (p) => {
         try {
-          return { ...p, images: await normalizeImageUrls(ctx, p.images) };
+          const normalizedStorage = normalizeProductStorage({
+            storage: p.storage,
+            storageOptions: p.storageOptions,
+          });
+          return {
+            ...p,
+            storage: normalizedStorage.storage,
+            storageOptions: normalizedStorage.storageOptions,
+            images: await normalizeImageUrls(ctx, p.images),
+          };
         } catch {
-          return { ...p, images: [] };
+          const normalizedStorage = normalizeProductStorage({
+            storage: p.storage,
+            storageOptions: p.storageOptions,
+          });
+          return {
+            ...p,
+            storage: normalizedStorage.storage,
+            storageOptions: normalizedStorage.storageOptions,
+            images: [],
+          };
         }
       }),
     );
@@ -417,7 +455,16 @@ export const getProductById = query({
   handler: async (ctx, { productId }) => {
     const p = await ctx.db.get(productId);
     if (!p) return null;
-    return { ...p, images: await normalizeImageUrls(ctx, p.images) };
+    const normalizedStorage = normalizeProductStorage({
+      storage: p.storage,
+      storageOptions: p.storageOptions,
+    });
+    return {
+      ...p,
+      storage: normalizedStorage.storage,
+      storageOptions: normalizedStorage.storageOptions,
+      images: await normalizeImageUrls(ctx, p.images),
+    };
   },
 });
 
@@ -434,6 +481,7 @@ export const createProduct = mutation({
     phoneType: v.string(),
     ram: v.optional(v.string()),
     storage: v.optional(v.string()),
+    storageOptions: v.optional(v.array(vStorageOption)),
     condition: v.optional(vCondition),
     price: v.number(),
     stockQuantity: v.number(),
@@ -456,13 +504,25 @@ export const createProduct = mutation({
     const now = Date.now();
     const exchangeEnabled = normalizeExchangeEnabled(args.type, args.exchangeEnabled);
     const images = sanitizeImageUrls(args.images);
+    const normalizedStorage = normalizeProductStorage({
+      storage: args.storage,
+      storageOptions: args.storageOptions,
+    });
     return await ctx.db.insert("products", {
       ...args,
+      storage: normalizedStorage.storage,
+      storageOptions: normalizedStorage.storageOptions,
       images,
       exchangeEnabled,
       isArchived: false,
-      searchText: buildSearchText(args),
-      searchNormalized: buildSearchNormalized(args),
+      searchText: buildSearchText({
+        ...args,
+        storage: normalizedStorage.searchText,
+      }),
+      searchNormalized: buildSearchNormalized({
+        ...args,
+        storage: normalizedStorage.searchText,
+      }),
       createdAt: now,
       updatedAt: now,
     });
@@ -480,6 +540,7 @@ export const updateProduct = mutation({
     phoneType: v.optional(v.string()),
     ram: v.optional(v.string()),
     storage: v.optional(v.string()),
+    storageOptions: v.optional(v.array(vStorageOption)),
     condition: v.optional(vCondition),
     price: v.optional(v.number()),
     stockQuantity: v.optional(v.number()),
@@ -509,11 +570,15 @@ export const updateProduct = mutation({
       effectiveType,
       effectiveExchangeEnabled,
     );
+    const normalizedStorage = normalizeProductStorage({
+      storage: patch.storage ?? existing.storage,
+      storageOptions: patch.storageOptions ?? existing.storageOptions,
+    });
 
     // Recompute searchText and searchNormalized using the merged (effective) field values.
     const searchFieldArgs = {
       phoneType: patch.phoneType ?? existing.phoneType,
-      storage: patch.storage ?? existing.storage,
+      storage: normalizedStorage.searchText,
       ram: patch.ram ?? existing.ram,
       condition: patch.condition ?? existing.condition,
     };
@@ -524,6 +589,8 @@ export const updateProduct = mutation({
 
     await ctx.db.patch(productId, {
       ...patch,
+      storage: normalizedStorage.storage,
+      storageOptions: normalizedStorage.storageOptions,
       ...imagePatch,
       exchangeEnabled: normalizedExchangeEnabled,
       searchText,
@@ -614,10 +681,14 @@ export const backfillSearchText = mutation({
     let count = 0;
     for (const p of all) {
       if (!p.searchText) {
+        const normalizedStorage = normalizeProductStorage({
+          storage: p.storage,
+          storageOptions: p.storageOptions,
+        });
         await ctx.db.patch(p._id, {
           searchText: buildSearchText({
             phoneType: p.phoneType,
-            storage: p.storage,
+            storage: normalizedStorage.searchText,
             ram: p.ram,
             condition: p.condition,
           }),
@@ -642,10 +713,14 @@ export const backfillSearchNormalized = mutation({
     let count = 0;
     for (const p of all) {
       if (!p.searchNormalized) {
+        const normalizedStorage = normalizeProductStorage({
+          storage: p.storage,
+          storageOptions: p.storageOptions,
+        });
         await ctx.db.patch(p._id, {
           searchNormalized: buildSearchNormalized({
             phoneType: p.phoneType,
-            storage: p.storage,
+            storage: normalizedStorage.searchText,
             ram: p.ram,
             condition: p.condition,
           }),
@@ -673,11 +748,15 @@ export const migratePhoneType = mutation({
       const legacy = p as unknown as { brand?: string; model?: string; phoneType?: string };
       if (!legacy.phoneType && legacy.brand && legacy.model) {
         const phoneType = `${legacy.brand} ${legacy.model}`.trim();
+        const normalizedStorage = normalizeProductStorage({
+          storage: p.storage,
+          storageOptions: p.storageOptions,
+        });
         await ctx.db.patch(p._id, {
           phoneType,
           searchText: buildSearchText({
             phoneType,
-            storage: p.storage,
+            storage: normalizedStorage.searchText,
             ram: p.ram,
             condition: p.condition,
           }),
@@ -686,6 +765,41 @@ export const migratePhoneType = mutation({
       }
     }
     return { migrated: count };
+  },
+});
+
+/**
+ * One-time backfill: derive storageOptions from legacy storage strings and
+ * normalize storage display values for existing products.
+ */
+export const backfillStorageOptions = mutation({
+  args: {},
+  handler: async (ctx) => {
+    const all = await ctx.db.query("products").collect();
+    let count = 0;
+
+    for (const p of all) {
+      const normalizedStorage = normalizeProductStorage({
+        storage: p.storage,
+        storageOptions: p.storageOptions,
+      });
+      const currentStorage = p.storage ?? undefined;
+      const nextStorage = normalizedStorage.storage;
+      const currentStorageOptions = JSON.stringify(p.storageOptions ?? []);
+      const nextStorageOptions = JSON.stringify(normalizedStorage.storageOptions ?? []);
+
+      if (currentStorage === nextStorage && currentStorageOptions === nextStorageOptions) {
+        continue;
+      }
+
+      await ctx.db.patch(p._id, {
+        storage: nextStorage,
+        storageOptions: normalizedStorage.storageOptions,
+      });
+      count++;
+    }
+
+    return { backfilled: count };
   },
 });
 
@@ -725,10 +839,11 @@ export const cleanupLegacyBrandModel = mutation({
     let cleaned = 0;
 
     for (const p of products) {
-      const hasBrand = (p as any).brand !== undefined;
-      const hasModel = (p as any).model !== undefined;
+      const legacy = p as typeof p & { brand?: string; model?: string };
+      const hasBrand = legacy.brand !== undefined;
+      const hasModel = legacy.model !== undefined;
       if (hasBrand || hasModel) {
-        await ctx.db.patch(p._id, { brand: undefined, model: undefined } as any);
+        await ctx.db.patch(p._id, { brand: undefined, model: undefined });
         cleaned++;
       }
     }

@@ -10,6 +10,13 @@ import { getTelegramUser } from '../lib/telegram';
 import { processImage } from '../lib/imageProcessor';
 import { formatETB, getStockStatus } from '../lib/utils';
 import { normalizePhoneType, validatePhoneType } from '../lib/phoneTypeUtils';
+import {
+  PHONE_STORAGE_OPTIONS,
+  formatPhoneStorageDisplay,
+  getPhoneStorageDisplay,
+  parsePhoneStorageOptions,
+  type PhoneStorageOption,
+} from '../lib/storageOptions';
 import { getBackendInfo } from '../lib/backend';
 import type { Condition, ProductType } from '../types';
 
@@ -23,11 +30,18 @@ const CONDITION_DESCRIPTIONS: Record<Condition, string> = {
   Poor: 'Heavy wear or minor issues',
 };
 
+const RAM_OPTIONS = ['8GB', '12GB'] as const;
+type RamOption = (typeof RAM_OPTIONS)[number];
+const RAM_DESCRIPTIONS: Record<RamOption, string> = {
+  '8GB': 'Balanced daily performance',
+  '12GB': 'High performance multitasking',
+};
+
 interface FormData {
   type: ProductType;
   phoneType: string;
-  ram: string;
-  storage: string;
+  ram: RamOption | '';
+  storageOptions: PhoneStorageOption[];
   condition: Condition | '';
   price: number | null;
   stockQuantity: string;
@@ -60,6 +74,14 @@ const parsePriceInput = (value: string): number | null => {
   return Number.isNaN(parsed) ? null : parsed;
 };
 
+const normalizeRamOption = (value: string | null | undefined): RamOption | '' => {
+  if (!value) return '';
+  const compact = value.trim().toUpperCase().replace(/\s+/g, '');
+  if (compact === '8GB' || compact === '8') return '8GB';
+  if (compact === '12GB' || compact === '12') return '12GB';
+  return '';
+};
+
 const isProductType = (value: string | null): value is ProductType =>
   value === 'phone' || value === 'accessory';
 
@@ -77,7 +99,7 @@ export default function ProductForm() {
     type: defaultType,
     phoneType: '',
     ram: '',
-    storage: '',
+    storageOptions: [],
     condition: '',
     price: null,
     stockQuantity: '1',
@@ -122,8 +144,10 @@ export default function ProductForm() {
       setForm({
         type: existingProduct.type,
         phoneType: existingProduct.phoneType ?? '',
-        ram: existingProduct.ram ?? '',
-        storage: existingProduct.storage ?? '',
+        ram: normalizeRamOption(existingProduct.ram),
+        storageOptions: parsePhoneStorageOptions(
+          existingProduct.storageOptions ?? existingProduct.storage ?? '',
+        ),
         condition: existingProduct.condition ?? '',
         price: existingProduct.price,
         stockQuantity: String(existingProduct.stockQuantity),
@@ -244,7 +268,9 @@ export default function ProductForm() {
     if (!validation.valid) newErrors.phoneType = validation.error || 'Phone type is required';
     if (form.price === null || !Number.isFinite(form.price) || form.price <= 0) newErrors.price = 'Valid price required';
     if (!form.stockQuantity || Number(form.stockQuantity) < 0) newErrors.stockQuantity = 'Valid quantity required';
-    if (form.type === 'phone' && !form.storage) newErrors.storage = 'Storage required for phones';
+    if (form.type === 'phone' && form.storageOptions.length === 0) {
+      newErrors.storageOptions = 'Select at least one storage size';
+    }
     if (form.type === 'phone' && !form.condition) newErrors.condition = 'Condition required for phones';
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -267,13 +293,17 @@ export default function ProductForm() {
     setSaving(true);
     try {
       const allImages = await uploadImageUrls();
+      const storageDisplay = formatPhoneStorageDisplay(form.storageOptions);
 
       const common = {
         type: form.type,
         phoneType: normalizePhoneType(form.phoneType),
-        ram: form.ram || undefined,
-        storage: form.storage || undefined,
-        condition: (form.condition as Condition) || undefined,
+        ram: form.type === 'phone' ? form.ram || undefined : undefined,
+        storage: form.type === 'phone' ? storageDisplay : undefined,
+        storageOptions: form.type === 'phone' && form.storageOptions.length > 0
+          ? form.storageOptions
+          : undefined,
+        condition: form.type === 'phone' ? (form.condition as Condition) || undefined : undefined,
         price: safePrice,
         stockQuantity: Number(form.stockQuantity),
         exchangeEnabled: form.type === 'phone' ? form.exchangeEnabled : false,
@@ -339,6 +369,17 @@ export default function ProductForm() {
     setPriceText(parsed === null ? '' : formatPriceForInput(parsed));
   };
 
+  const toggleStorageOption = (option: PhoneStorageOption) => {
+    const nextOptions = form.storageOptions.includes(option)
+      ? form.storageOptions.filter((value) => value !== option)
+      : [...form.storageOptions, option];
+    update('storageOptions', nextOptions);
+  };
+
+  const toggleRamOption = (option: RamOption) => {
+    update('ram', form.ram === option ? '' : option);
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen bg-bg">
@@ -363,6 +404,10 @@ export default function ProductForm() {
   }
 
   const isPhone = form.type === 'phone';
+  const selectedStorageLabel = getPhoneStorageDisplay(
+    undefined,
+    form.storageOptions,
+  );
   const stockStatus = getStockStatus(Number(form.stockQuantity) || 0);
   const debugBackendInfo = getBackendInfo(import.meta.env.VITE_CONVEX_URL ?? '');
   const debugHostname = debugBackendInfo.hostname ?? debugBackendInfo.label ?? 'unset';
@@ -468,28 +513,61 @@ export default function ProductForm() {
             {/* Phone-specific fields */}
             {isPhone && (
               <>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-xs font-medium text-app-text mb-1.5 block">Storage *</label>
-                    <input
-                      type="text"
-                      value={form.storage}
-                      onChange={(e) => update('storage', e.target.value)}
-                      placeholder="e.g. 256GB"
-                      className={`w-full bg-surface-2 border rounded-xl px-3 py-2.5 text-sm text-app-text placeholder:text-muted outline-none transition-colors ${errors.storage ? 'border-red-400 bg-red-950/40' : 'border-[var(--border)]'
-                        }`}
-                    />
-                    {errors.storage && <p className="text-xs text-red-500 mt-1">{errors.storage}</p>}
+                <div>
+                  <div className="flex items-center justify-between gap-3 mb-1.5">
+                    <label className="text-xs font-medium text-app-text block">Storage *</label>
+                    {selectedStorageLabel && (
+                      <span className="text-[11px] font-semibold" style={{ color: 'var(--primary)' }}>
+                        {selectedStorageLabel}
+                      </span>
+                    )}
                   </div>
-                  <div>
-                    <label className="text-xs font-medium text-app-text mb-1.5 block">RAM</label>
-                    <input
-                      type="text"
-                      value={form.ram}
-                      onChange={(e) => update('ram', e.target.value)}
-                      placeholder="e.g. 8GB"
-                      className="w-full bg-surface-2 border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm text-app-text placeholder:text-muted outline-none outline-none transition-colors"
-                    />
+                  <div className="grid grid-cols-3 gap-2">
+                    {PHONE_STORAGE_OPTIONS.map((option) => {
+                      const selected = form.storageOptions.includes(option);
+                      return (
+                        <button
+                          key={option}
+                          type="button"
+                          onClick={() => toggleStorageOption(option)}
+                          className="p-2.5 rounded-xl border text-center transition-all"
+                          style={selected
+                            ? { background: 'rgba(245,196,0,0.12)', border: '1px solid var(--primary)' }
+                            : { background: 'var(--surface-2)', border: '1px solid var(--border)' }
+                          }
+                        >
+                          <p className="text-xs font-semibold" style={{ color: selected ? 'var(--primary)' : 'var(--text)' }}>
+                            {option}
+                          </p>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p className="text-[11px] text-muted mt-2">Select every storage size available for this phone.</p>
+                  {errors.storageOptions && <p className="text-xs text-red-500 mt-1">{errors.storageOptions}</p>}
+                </div>
+
+                <div>
+                  <label className="text-xs font-medium text-app-text mb-1.5 block">RAM</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {RAM_OPTIONS.map((option) => {
+                      const selected = form.ram === option;
+                      return (
+                        <button
+                          key={option}
+                          type="button"
+                          onClick={() => toggleRamOption(option)}
+                          className="p-2.5 rounded-xl border text-left transition-all"
+                          style={selected
+                            ? { background: 'rgba(245,196,0,0.12)', border: '1px solid var(--primary)' }
+                            : { background: 'var(--surface-2)', border: '1px solid var(--border)' }
+                          }
+                        >
+                          <p className="text-xs font-semibold" style={{ color: selected ? 'var(--primary)' : 'var(--text)' }}>{option}</p>
+                          <p className="text-[10px] text-muted mt-0.5">{RAM_DESCRIPTIONS[option]}</p>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
 

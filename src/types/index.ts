@@ -52,6 +52,7 @@ export interface Product {
   phoneType: string;
   ram?: string;
   storage?: string;
+  storageOptions?: string[];
   condition?: Condition;
   price: number;
   stockQuantity: number;

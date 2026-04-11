@@ -116,3 +116,155 @@ export const markThreadSeen = mutation({
     });
   },
 });
+
+/**
+ * Bot-only durable state: fetch or create a per-chat thread record.
+ * This lives in botThreads so it does not interfere with the admin CRM threads table.
+ */
+export const getOrCreateThread = mutation({
+  args: {
+    chatId: v.string(),
+    telegramUserId: v.string(),
+    username: v.optional(v.string()),
+    firstName: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const existing = await ctx.db
+      .query("botThreads")
+      .withIndex("by_chatId", (q) => q.eq("chatId", args.chatId))
+      .first();
+
+    if (existing) return existing;
+
+    const now = Date.now();
+    const id = await ctx.db.insert("botThreads", {
+      chatId: args.chatId,
+      telegramUserId: args.telegramUserId,
+      username: args.username,
+      firstName: args.firstName,
+      lastMessageAt: now,
+      firstMessageAt: now,
+      messageCount: 0,
+      recentMessages: [],
+      intake: undefined,
+    });
+
+    return await ctx.db.get(id);
+  },
+});
+
+/**
+ * Append the latest user/assistant exchange to durable bot conversation memory.
+ * Keeps only the last 10 entries (5 exchange pairs).
+ */
+export const updateThread = mutation({
+  args: {
+    chatId: v.string(),
+    userMessage: v.string(),
+    assistantMessage: v.string(),
+    timestamp: v.number(),
+  },
+  handler: async (ctx, args) => {
+    const thread = await ctx.db
+      .query("botThreads")
+      .withIndex("by_chatId", (q) => q.eq("chatId", args.chatId))
+      .first();
+
+    if (!thread) {
+      throw new Error(`Bot thread not found for chatId: ${args.chatId}`);
+    }
+
+    const newMessages = [
+      ...thread.recentMessages,
+      { role: "user" as const, content: args.userMessage, timestamp: args.timestamp },
+      { role: "assistant" as const, content: args.assistantMessage, timestamp: args.timestamp + 1 },
+    ].slice(-10);
+
+    await ctx.db.patch(thread._id, {
+      recentMessages: newMessages,
+      lastMessageAt: args.timestamp,
+      messageCount: thread.messageCount + 1,
+    });
+
+    return { ok: true, threadId: thread._id, messageCount: thread.messageCount + 1 };
+  },
+});
+
+/**
+ * Persist the active sell/exchange intake state for the bot flow.
+ * write_key makes repeated n8n retries idempotent.
+ */
+export const updateIntakeState = mutation({
+  args: {
+    chatId: v.string(),
+    flow: v.union(v.literal("sell"), v.literal("exchange")),
+    status: v.union(
+      v.literal("start"),
+      v.literal("in_progress"),
+      v.literal("complete"),
+    ),
+    data: v.object({
+      offered_model: v.optional(v.string()),
+      offered_storage: v.optional(v.string()),
+      offered_condition: v.optional(
+        v.union(
+          v.literal("new"),
+          v.literal("good"),
+          v.literal("fair"),
+          v.literal("poor"),
+        ),
+      ),
+      asking_price: v.optional(v.number()),
+      desired_product_id: v.optional(v.string()),
+      desired_product_name: v.optional(v.string()),
+      customer_notes: v.optional(v.string()),
+    }),
+    write_key: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const thread = await ctx.db
+      .query("botThreads")
+      .withIndex("by_chatId", (q) => q.eq("chatId", args.chatId))
+      .first();
+
+    if (!thread) {
+      throw new Error(`Bot thread not found for chatId: ${args.chatId}`);
+    }
+
+    if (thread.intake?.write_key === args.write_key) {
+      return { skipped: true };
+    }
+
+    await ctx.db.patch(thread._id, {
+      intake: {
+        flow: args.flow,
+        status: args.status,
+        data: args.data,
+        last_updated_at: Date.now(),
+        write_key: args.write_key,
+      },
+    });
+
+    return { skipped: false };
+  },
+});
+
+/**
+ * Clear intake state after a successful sell/exchange write.
+ */
+export const clearIntakeState = mutation({
+  args: { chatId: v.string() },
+  handler: async (ctx, args) => {
+    const thread = await ctx.db
+      .query("botThreads")
+      .withIndex("by_chatId", (q) => q.eq("chatId", args.chatId))
+      .first();
+
+    if (!thread) {
+      return { ok: true, notFound: true };
+    }
+
+    await ctx.db.patch(thread._id, { intake: undefined });
+    return { ok: true, notFound: false };
+  },
+});

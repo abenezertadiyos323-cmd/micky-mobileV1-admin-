@@ -1,6 +1,7 @@
 import { Lock } from 'lucide-react';
 import type { Product } from '../types';
 import { formatETB } from '../lib/utils';
+import { getPhoneStorageDisplay } from '../lib/storageOptions';
 
 interface ProductCardProps {
   product: Product;
@@ -20,9 +21,7 @@ export default function ProductCard({ product, onClick }: ProductCardProps) {
   const phoneType = typeof product.phoneType === 'string' && product.phoneType.trim().length > 0
     ? product.phoneType
     : 'Unnamed product';
-  const storage = typeof product.storage === 'string' && product.storage.trim().length > 0
-    ? product.storage
-    : undefined;
+  const storage = getPhoneStorageDisplay(product.storage, product.storageOptions);
   const priceLabel = typeof product.price === 'number' ? formatETB(product.price) : 'N/A';
   const stockStyle = getStockStyleDark(stockQuantity);
 

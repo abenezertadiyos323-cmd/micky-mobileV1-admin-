@@ -8,6 +8,7 @@ import EmptyState from '../components/EmptyState';
 import { api } from '../../convex/_generated/api';
 import type { Id } from '../../convex/_generated/dataModel';
 import type { Product, ProductType, Condition } from '../types';
+import { PHONE_STORAGE_FILTER_OPTIONS } from '../lib/storageOptions';
 import { getSearchHistory, addToSearchHistory, clearSearchHistory } from '../utils/searchHistory';
 
 type InventoryTab = 'all' | 'inStock' | 'lowStock' | 'outOfStock' | 'exchangeEnabled' | 'archived';
@@ -39,7 +40,6 @@ const CONDITIONS: { value: Condition; label: string }[] = [
   { value: 'Poor', label: 'Poor' },
 ];
 
-const STORAGE_OPTIONS = [64, 128, 256, 512] as const;
 const RAM_OPTIONS = [4, 6, 8, 12] as const;
 
 type SortOption = 'newest' | 'priceLow' | 'priceHigh' | 'stockLow';
@@ -279,7 +279,7 @@ function InventoryContent() {
       setIsSearching(false); // Debounce fired; query loading takes over the indicator
       setCommittedQ(searchQuery);
     }, 300);
-  }, [searchQuery]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [searchQuery]);
 
   // Enter key: bypass debounce and trigger immediately
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -855,9 +855,9 @@ function InventoryContent() {
                   style={inputStyle}
                 >
                   <option value="">Any</option>
-                  {STORAGE_OPTIONS.map((gb) => (
-                    <option key={gb} value={gb}>
-                      {gb} GB
+                  {PHONE_STORAGE_FILTER_OPTIONS.map((option) => (
+                    <option key={option.label} value={option.value}>
+                      {option.label}
                     </option>
                   ))}
                 </select>

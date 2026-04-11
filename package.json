@@ -9,7 +9,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "convex:run:prod": "convex run --deployment-name fastidious-schnauzer-265",
-    "convex:deploy:prod": "convex deploy --deployment-name fastidious-schnauzer-265 --yes"
+    "convex:deploy:prod": "npx convex deploy --yes"
   },
   "dependencies": {
     "convex": "^1.32.0",
