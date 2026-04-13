@@ -8,7 +8,7 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "convex:run:prod": "convex run --deployment-name fastidious-schnauzer-265",
+    "convex:run:prod": "convex run --deployment-name festive-meerkat-259",
     "convex:deploy:prod": "npx convex deploy --yes"
   },
   "dependencies": {
