@@ -101,7 +101,7 @@ export const upsertSettings = mutation({
 **Step 3: Commit**
 
 ```bash
-cd "d:/Abenier/TedyTech Admin/Admin-Ted"
+cd "d:/Abenier/Micky Mobile Admin/Admin-Ted"
 git add convex/schema.ts convex/adminSettings.ts
 git commit -m "feat(backend): add adminSettings table and upsert mutation"
 ```
@@ -198,7 +198,7 @@ style={{ background: 'var(--primary)', color: 'var(--primary-foreground)' }}
 **Step: Commit**
 
 ```bash
-cd "d:/Abenier/TedyTech Admin/Admin-Ted"
+cd "d:/Abenier/Micky Mobile Admin/Admin-Ted"
 git add src/pages/ProductForm.tsx
 git commit -m "fix(ui): replace indigo/green/blue hardcoded colors in ProductForm with design tokens"
 ```
@@ -249,7 +249,7 @@ Replace: `<span className="text-xs font-medium" style={{ color: 'var(--badge)' }
 **Commit:**
 
 ```bash
-cd "d:/Abenier/TedyTech Admin/Admin-Ted"
+cd "d:/Abenier/Micky Mobile Admin/Admin-Ted"
 git add src/pages/ExchangeDetail.tsx src/pages/Dashboard.tsx
 git commit -m "fix(ui): replace hardcoded colors in ExchangeDetail and Dashboard with design tokens"
 ```
@@ -572,7 +572,7 @@ export default function Settings() {
               label="Store Name"
               value={storeName}
               onChange={(v) => setStoreDraft((prev) => ({ ...(prev ?? { storeName: resolved.storeName, supportContact: resolved.supportContact, telegramBotLink: resolved.telegramBotLink }), storeName: v }))}
-              placeholder="e.g. TedyTech"
+              placeholder="e.g. Micky Mobile"
             />
             <InputRow
               label="Support Contact"
@@ -584,7 +584,7 @@ export default function Settings() {
               label="Telegram Bot Link"
               value={telegramBotLink}
               onChange={(v) => setStoreDraft((prev) => ({ ...(prev ?? { storeName: resolved.storeName, supportContact: resolved.supportContact, telegramBotLink: resolved.telegramBotLink }), telegramBotLink: v }))}
-              placeholder="e.g. @TedyTechBot"
+              placeholder="e.g. @Micky MobileBot"
               isLast
             />
             {storeDraft && (
@@ -653,11 +653,11 @@ export default function Settings() {
                 />
                 <div>
                   <p className="text-sm font-semibold" style={{ color: 'var(--text)' }}>Brand Color</p>
-                  <p className="text-xs" style={{ color: 'var(--muted)' }}>#F5C400 — TedyTech Yellow</p>
+                  <p className="text-xs" style={{ color: 'var(--muted)' }}>#F5C400 — Micky Mobile Yellow</p>
                 </div>
               </div>
               <p className="text-xs" style={{ color: 'var(--muted)' }}>
-                The primary color is fixed to the TedyTech brand. Alert red (#FF2D55) is used for unread badges and danger actions. The dark theme is locked for admin use.
+                The primary color is fixed to the Micky Mobile brand. Alert red (#FF2D55) is used for unread badges and danger actions. The dark theme is locked for admin use.
               </p>
             </div>
           </SettingsCard>
@@ -683,7 +683,7 @@ export default function Settings() {
 **Commit:**
 
 ```bash
-cd "d:/Abenier/TedyTech Admin/Admin-Ted"
+cd "d:/Abenier/Micky Mobile Admin/Admin-Ted"
 git add src/pages/Settings.tsx
 git commit -m "feat(settings): rebuild settings screen with 5 card sections and Convex persistence"
 ```
@@ -697,7 +697,7 @@ Expected: Settings screen shows 5 sections. Store/Inventory fields show Apply bu
 **Step 1: Deploy backend**
 
 ```bash
-cd "d:/Abenier/TedyTech Admin/Admin-Ted"
+cd "d:/Abenier/Micky Mobile Admin/Admin-Ted"
 npx convex deploy --yes
 ```
 
@@ -706,7 +706,7 @@ Expected: Deploys to fastidious-schnauzer-265 (prod). Schema updated with adminS
 **Step 2: Build frontend**
 
 ```bash
-cd "d:/Abenier/TedyTech Admin/Admin-Ted"
+cd "d:/Abenier/Micky Mobile Admin/Admin-Ted"
 npm run build
 ```
 
@@ -715,7 +715,7 @@ Expected: Build succeeds with no TypeScript errors.
 **Step 3: Push to remote**
 
 ```bash
-cd "d:/Abenier/TedyTech Admin/Admin-Ted"
+cd "d:/Abenier/Micky Mobile Admin/Admin-Ted"
 git push origin main
 ```
 
@@ -724,7 +724,7 @@ Expected: All Batch 3 commits pushed.
 **Step 4: Verify git log shows all commits**
 
 ```bash
-cd "d:/Abenier/TedyTech Admin/Admin-Ted"
+cd "d:/Abenier/Micky Mobile Admin/Admin-Ted"
 git log --oneline main -8
 ```
 

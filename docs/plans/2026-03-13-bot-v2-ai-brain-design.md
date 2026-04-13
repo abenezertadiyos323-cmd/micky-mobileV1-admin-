@@ -1,4 +1,4 @@
-# TedyTech Bot V2 — AI Brain Architecture Design
+# Micky Mobile Bot V2 — AI Brain Architecture Design
 
 **Date:** 2026-03-13
 **Status:** APPROVED FOR IMPLEMENTATION
@@ -202,7 +202,7 @@ Output format: JSON only
 
 ```json
 {
-  "system_prompt": "You are TedyTech's AI product matching brain...",
+  "system_prompt": "You are Micky Mobile's AI product matching brain...",
   "user_message": "S24 how much",
   "pre_signals": {
     "language_hint": "en",
@@ -534,7 +534,7 @@ If a field is missing or null, Call 2 must say "ዝርዝሩ አሁን አይገ
 
 ### Phase 1 — Build V2 Parallel Workflow in n8n
 
-1. Duplicate V1 workflow as `"TedyTech V2 - AI Brain"` in n8n
+1. Duplicate V1 workflow as `"Micky Mobile V2 - AI Brain"` in n8n
 2. **Disable V2 webhook** — V1 still handles all production traffic
 3. Rebuild nodes in implementation order (Section 13)
 4. Use n8n test execution mode to validate each stage in isolation

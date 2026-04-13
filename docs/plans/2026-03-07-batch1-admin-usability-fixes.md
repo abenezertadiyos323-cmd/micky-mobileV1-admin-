@@ -35,7 +35,7 @@ export const permanentDeleteProduct = mutation({
 **Step 2: Verify TypeScript compiles**
 
 ```bash
-cd "d:/Abenier/TedyTech Admin/Admin-Ted"
+cd "d:/Abenier/Micky Mobile Admin/Admin-Ted"
 npm run build
 ```
 Expected: no errors related to products.ts
@@ -291,7 +291,7 @@ This removes the size overrides, so Badge uses its own defaults: `18px` height, 
 **Step 1: Run build**
 
 ```bash
-cd "d:/Abenier/TedyTech Admin/Admin-Ted"
+cd "d:/Abenier/Micky Mobile Admin/Admin-Ted"
 npm run build
 ```
 
@@ -302,7 +302,7 @@ Expected: exit 0, no TypeScript errors.
 ### Task 7: Commit and push Batch 1
 
 ```bash
-cd "d:/Abenier/TedyTech Admin/Admin-Ted"
+cd "d:/Abenier/Micky Mobile Admin/Admin-Ted"
 git add convex/products.ts src/pages/Inventory.tsx src/pages/Dashboard.tsx src/components/BottomNav.tsx
 git commit -m "fix(admin): resolve critical inventory and navigation usability issues"
 git push

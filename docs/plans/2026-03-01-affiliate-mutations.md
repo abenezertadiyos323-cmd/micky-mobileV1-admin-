@@ -80,7 +80,7 @@ export const getOrCreateMyAffiliate = mutation({
 **Step 3: Verify TypeScript**
 
 ```bash
-cd "d:/Abenier/TedyTech Admin/Admin-Ted"
+cd "d:/Abenier/Micky Mobile Admin/Admin-Ted"
 npx tsc --noEmit
 ```
 
@@ -141,7 +141,7 @@ export const trackReferral = mutation({
 **Step 2: Verify TypeScript**
 
 ```bash
-cd "d:/Abenier/TedyTech Admin/Admin-Ted"
+cd "d:/Abenier/Micky Mobile Admin/Admin-Ted"
 npx tsc --noEmit
 ```
 
@@ -154,7 +154,7 @@ Expected: no output, exit code 0.
 **Step 1: Full production build**
 
 ```bash
-cd "d:/Abenier/TedyTech Admin/Admin-Ted"
+cd "d:/Abenier/Micky Mobile Admin/Admin-Ted"
 npm run build
 ```
 

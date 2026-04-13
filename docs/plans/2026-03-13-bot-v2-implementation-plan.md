@@ -1,8 +1,8 @@
-# TedyTech Bot V2 — AI Brain Implementation Plan
+# Micky Mobile Bot V2 — AI Brain Implementation Plan
 
 > **For agentic workers:** REQUIRED: Use superpowers:subagent-driven-development (if subagents available) or superpowers:executing-plans to implement this plan. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Migrate the live TedyTech Telegram bot from a JS-fuzzy-match-centric V1 pipeline to a V2 AI-brain architecture where Gemini resolves shorthand product names against real Convex inventory, and sell/exchange flows progress through explicit multi-step intake states.
+**Goal:** Migrate the live Micky Mobile Telegram bot from a JS-fuzzy-match-centric V1 pipeline to a V2 AI-brain architecture where Gemini resolves shorthand product names against real Convex inventory, and sell/exchange flows progress through explicit multi-step intake states.
 
 **Architecture:** Convex compact catalog is fetched before Call 1 (tiered by brand/featured/full). Call 1 (Gemini, temp 0.1) receives the inventory and returns structured routing with matched product IDs. A deterministic ID Validator node guards against hallucinated IDs before routing to path-specific execution. V1 stays live on the production webhook until V2 passes full test-bot validation.
 
@@ -14,7 +14,7 @@
 
 ## 1. Executive Summary
 
-V2 is built as a parallel n8n workflow (`TedyTech V2 - AI Brain`) with V1's webhook kept active throughout. Ten implementation phases cover Convex data prep (Phase A), the n8n workflow scaffold (Phase B), the AI brain call and validator (Phases C–D), the intake state machine (Phases E–F), the response generation layer (Phase G), test-bot QA (Phase H), production cutover (Phase I), and post-launch monitoring (Phase J).
+V2 is built as a parallel n8n workflow (`Micky Mobile V2 - AI Brain`) with V1's webhook kept active throughout. Ten implementation phases cover Convex data prep (Phase A), the n8n workflow scaffold (Phase B), the AI brain call and validator (Phases C–D), the intake state machine (Phases E–F), the response generation layer (Phase G), test-bot QA (Phase H), production cutover (Phase I), and post-launch monitoring (Phase J).
 
 The plan is grounded entirely in the approved spec. Four schema-reality corrections from reading the live codebase are locked in Section 2 below — these are not spec changes, they are the spec adapted to the existing Convex schema.
 
@@ -535,7 +535,7 @@ export const createBotHotLead = mutation({
 });
 ```
 
-**Note on `sellerId`:** This requires the bot to know the admin seller ID. The `sellerId` must be stored in n8n as an environment variable (`$env.TEDYTECH_SELLER_ID`). Verify the seller ID from the Convex `sellers` table before deploying V2.
+**Note on `sellerId`:** This requires the bot to know the admin seller ID. The `sellerId` must be stored in n8n as an environment variable (`$env.MICKY_MOBILE_SELLER_ID`). Verify the seller ID from the Convex `sellers` table before deploying V2.
 
 - [ ] **Before adding the mutation:** Open `D:/Ab/TedTech/convex/hotLeads.ts` and confirm the `hotLeads` table's `source` field definition includes `v.literal("bot")`. If the schema only shows `v.literal("miniapp")` or similar, the mutation will fail Convex validation at runtime. Fix the schema first if needed (Task A1 already handles schema changes).
 - [ ] Run `npx convex dev` — confirm mutation deploys
@@ -594,7 +594,7 @@ export const createBotExchange = mutation({
 
 **Acceptance criteria:** Mutation creates an `exchanges` record with `status: "pending"`. Visible in admin dashboard under Exchanges. `offeredDevice` contains the full sell-side device description built from intake data.
 
-**Risk:** The `exchanges` table requires `sellerId: v.id("sellers")`. If `TEDYTECH_SELLER_ID` is not set in n8n env vars, this mutation will fail. Verify env var is set before Phase F (see Task B2). The `writeKey` dedup guard queries `threads` — same race condition note as Task A4 applies here; safe for V2 launch.
+**Risk:** The `exchanges` table requires `sellerId: v.id("sellers")`. If `MICKY_MOBILE_SELLER_ID` is not set in n8n env vars, this mutation will fail. Verify env var is set before Phase F (see Task B2). The `writeKey` dedup guard queries `threads` — same race condition note as Task A4 applies here; safe for V2 launch.
 
 ---
 
@@ -611,7 +611,7 @@ export const createBotExchange = mutation({
 
 ### Phase B — n8n V2 Parallel Workflow Scaffold
 
-**Goal:** Create the `TedyTech V2 - AI Brain` workflow in n8n as a copy of V1, with the V2 webhook immediately disabled. Establish the skeleton that Phases C–G will fill in.
+**Goal:** Create the `Micky Mobile V2 - AI Brain` workflow in n8n as a copy of V1, with the V2 webhook immediately disabled. Establish the skeleton that Phases C–G will fill in.
 
 **Files touched:** n8n workflow (via n8n UI — no file system changes)
 
@@ -622,8 +622,8 @@ export const createBotExchange = mutation({
 #### Task B1: Duplicate V1 workflow
 
 - [ ] Open the n8n UI
-- [ ] Find workflow `ip8TLyBJ5a7D7Tbx` (or by name "TedyTech Telegram AI Assistant")
-- [ ] Use n8n's duplicate/copy workflow feature to create `TedyTech V2 - AI Brain`
+- [ ] Find workflow `ip8TLyBJ5a7D7Tbx` (or by name "Micky Mobile Telegram AI Assistant")
+- [ ] Use n8n's duplicate/copy workflow feature to create `Micky Mobile V2 - AI Brain`
 - [ ] **Immediately disable the webhook** on the V2 workflow (toggle off or set webhook URL to inactive)
 - [ ] Confirm V1 webhook is still active and live
 
@@ -635,10 +635,10 @@ export const createBotExchange = mutation({
 
 - [ ] In n8n Settings → Environment Variables (or `.env` file), add:
   - `CONVEX_URL` = `https://fastidious-schnauzer-265.convex.cloud`
-  - `TEDYTECH_SELLER_ID` = (get from Convex `sellers` table — the active TedyTech seller document `_id`)
+  - `MICKY_MOBILE_SELLER_ID` = (get from Convex `sellers` table — the active Micky Mobile seller document `_id`)
 - [ ] Verify `OPENROUTER_API_KEY` is already set
 
-**Acceptance criteria:** Three environment variables available in n8n. V2 nodes can reference them as `$env.CONVEX_URL`, `$env.TEDYTECH_SELLER_ID`, `$env.OPENROUTER_API_KEY`.
+**Acceptance criteria:** Three environment variables available in n8n. V2 nodes can reference them as `$env.CONVEX_URL`, `$env.MICKY_MOBILE_SELLER_ID`, `$env.OPENROUTER_API_KEY`.
 
 ---
 
@@ -869,7 +869,7 @@ const normalized = $('Normalize Input').item.json;
 const thread = $('Load Thread').item.json;
 const inventory = $('Fetch Inventory').item.json.inventory ?? [];
 
-const systemPrompt = `You are TedyTech's AI product matching brain. TedyTech is a phone shop in Addis Ababa, Ethiopia.
+const systemPrompt = `You are Micky Mobile's AI product matching brain. Micky Mobile is a phone shop in Addis Ababa, Ethiopia.
 
 ## Your Job
 Analyze the customer's message and:
@@ -1227,7 +1227,7 @@ This fires on `sell_intake_complete` and `exchange_intake_complete`.
     "offeredModel": "{{ $json.intake_data?.offered_model }}",
     "askingPrice": "{{ $json.intake_data?.asking_price }}",
     "customerNotes": "{{ $json.intake_data?.customer_notes }}",
-    "sellerId": "{{ $env.TEDYTECH_SELLER_ID }}",
+    "sellerId": "{{ $env.MICKY_MOBILE_SELLER_ID }}",
     "writeKey": "{{ $('Normalize Input').item.json.messageId + ':sell' }}"
   }
 }
@@ -1245,7 +1245,7 @@ This fires on `sell_intake_complete` and `exchange_intake_complete`.
     "offeredDevice": "{{ ($json.intake_data?.offered_model ?? 'Unknown') + ' — Condition: ' + ($json.intake_data?.offered_condition ?? 'unspecified') }}",
     "requestedDevice": "{{ $json.intake_data?.desired_product_name }}",
     "customerNotes": "{{ $json.intake_data?.customer_notes }}",
-    "sellerId": "{{ $env.TEDYTECH_SELLER_ID }}",
+    "sellerId": "{{ $env.MICKY_MOBILE_SELLER_ID }}",
     "writeKey": "{{ $('Normalize Input').item.json.messageId + ':exchange' }}"
   }
 }
@@ -1338,11 +1338,11 @@ const safeProduct = fullProduct ? {
   category: fullProduct.category ?? null,
 } : null;
 
-const systemInstruction = `You are TedyTech's customer assistant for a phone shop in Addis Ababa.
+const systemInstruction = `You are Micky Mobile's customer assistant for a phone shop in Addis Ababa.
 
 ## Rules
 - Language: respond in ${normalized.preSignals.language_hint === "am" ? "Amharic" : normalized.preSignals.language_hint === "mixed" ? "mixed Amharic and English" : "English"}
-- ${isFirstMessage ? 'FIRST MESSAGE: Start with exactly: "እንኳን ወደ TedyTech በደህና መጡ! ✨" then add a dynamic welcome line.' : 'Do NOT use generic greetings like "Hello!"'}
+- ${isFirstMessage ? 'FIRST MESSAGE: Start with exactly: "እንኳን ወደ Micky Mobile በደህና መጡ! ✨" then add a dynamic welcome line.' : 'Do NOT use generic greetings like "Hello!"'}
 - Never state a price not in the product data below
 - Never say a product is in stock if inStock = false
 - Never mention images if hasImage = false
@@ -1446,7 +1446,7 @@ Replace the old `Save Conversation Memory` node:
 
 #### Task H1: Test bot setup
 
-- [ ] Create a second Telegram bot via @BotFather — name it `@TedyTechV2TestBot`
+- [ ] Create a second Telegram bot via @BotFather — name it `@MickyMobileV2TestBot`
 - [ ] Store the test bot token in n8n as `TEST_BOT_TOKEN`
 - [ ] Set V2 workflow webhook to test bot token
 - [ ] Confirm V2 webhook is active on test bot, V1 webhook still active on production bot
@@ -1510,7 +1510,7 @@ Run each scenario manually in Telegram with the test bot. Record actual response
 
 **First message scenario:**
 
-- [ ] Start a conversation as a new user → Expected: Response begins with exact text `"እንኳን ወደ TedyTech በደህና መጡ! ✨"`. `isFirstMessage = true` in thread.
+- [ ] Start a conversation as a new user → Expected: Response begins with exact text `"እንኳን ወደ Micky Mobile በደህና መጡ! ✨"`. `isFirstMessage = true` in thread.
 
 ---
 
@@ -1537,7 +1537,7 @@ Run each scenario manually in Telegram with the test bot. Record actual response
 - [ ] All Phase H test cases pass
 - [ ] V2 workflow active status: enabled (but webhook still pointing to test bot)
 - [ ] V1 webhook: active on production bot
-- [ ] n8n has `TEDYTECH_SELLER_ID` set correctly
+- [ ] n8n has `MICKY_MOBILE_SELLER_ID` set correctly
 - [ ] Confirm Convex is healthy (dashboard shows no errors)
 - [ ] Confirm you are available to monitor for at least 2 hours post-cutover
 - [ ] Identify rollback trigger threshold (e.g., > 3 error executions in 10 minutes)
@@ -1668,7 +1668,7 @@ If V2 is producing errors or bad responses:
 PRE-CUTOVER:
 1. Confirm V2 test bot passes all Phase H scenarios
 2. Confirm all Convex mutations are deployed (check dashboard)
-3. Confirm TEDYTECH_SELLER_ID env var is set in n8n
+3. Confirm MICKY_MOBILE_SELLER_ID env var is set in n8n
 4. Take note of current V1 execution count as baseline
 
 CUTOVER (perform back-to-back, <2 min total):
@@ -1718,9 +1718,9 @@ The spec includes `is_admin_sender` as a pre-signal but does not define how to f
 
 ### OQ-2 — Non-blocking: Seller ID for Bot Mutations
 
-`createBotHotLead` and `createBotExchange` require a `sellerId` from the `sellers` table. This must be stored as `TEDYTECH_SELLER_ID` in n8n environment variables.
+`createBotHotLead` and `createBotExchange` require a `sellerId` from the `sellers` table. This must be stored as `MICKY_MOBILE_SELLER_ID` in n8n environment variables.
 
-**Action required before Phase F:** Retrieve the correct `sellerId` from the Convex dashboard → `sellers` table → identify the active TedyTech seller → copy the `_id` value → set as n8n env var.
+**Action required before Phase F:** Retrieve the correct `sellerId` from the Convex dashboard → `sellers` table → identify the active Micky Mobile seller → copy the `_id` value → set as n8n env var.
 
 ### OQ-3 — Non-blocking: Amharic intake data
 

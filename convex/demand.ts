@@ -1,5 +1,5 @@
 // convex/demand.ts
-// Demand event logging for the TedyTech bot and mini app.
+// Demand event logging for the Micky Mobile bot and mini app.
 //
 // Callers:
 //   - Telegram bot (n8n): logs source="bot" when a customer asks about a phone type

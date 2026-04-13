@@ -49,7 +49,7 @@ messages: defineTable({
 ### Step 2: Verify TypeScript compiles
 
 ```bash
-cd "d:/Abenier/TedyTech Admin/Admin-Ted"
+cd "d:/Abenier/Micky Mobile Admin/Admin-Ted"
 npm run build
 ```
 Expected: no TypeScript errors. (Vite build may fail on unrelated things — that's OK for now; tsc errors are what matter.)
@@ -238,7 +238,7 @@ export const createAdminMessage = mutation({
 ### Step 2: Verify TypeScript compiles
 
 ```bash
-cd "d:/Abenier/TedyTech Admin/Admin-Ted"
+cd "d:/Abenier/Micky Mobile Admin/Admin-Ted"
 npm run build
 ```
 Expected: exits 0 with no tsc errors.
@@ -252,7 +252,7 @@ Expected: exits 0 with no tsc errors.
 ### Step 1: Deploy to prod
 
 ```bash
-cd "d:/Abenier/TedyTech Admin/Admin-Ted"
+cd "d:/Abenier/Micky Mobile Admin/Admin-Ted"
 npx convex deploy --yes
 ```
 
@@ -326,7 +326,7 @@ Expected: same `threadId`/`messageId` returned, **`"isDuplicate": true`**.
 ### Step 5: Commit schema + mutation
 
 ```bash
-cd "d:/Abenier/TedyTech Admin/Admin-Ted"
+cd "d:/Abenier/Micky Mobile Admin/Admin-Ted"
 git add convex/schema.ts convex/messages.ts
 git commit -m "feat: add messages:ingestTelegramMessage mutation + media/idempotency fields
 
@@ -461,7 +461,7 @@ This is the complete importable n8n workflow. The user imports it, attaches thei
 ### Step 2: Commit the n8n workflow JSON
 
 ```bash
-cd "d:/Abenier/TedyTech Admin/Admin-Ted"
+cd "d:/Abenier/Micky Mobile Admin/Admin-Ted"
 mkdir -p docs/n8n
 git add docs/n8n/telegram-ingestion-workflow.json
 git commit -m "docs: add n8n Telegram → Convex ingestion workflow JSON"
@@ -529,7 +529,7 @@ Send a photo to the bot. Verify in Convex messages table:
 ## Task 6: Final commit and push
 
 ```bash
-cd "d:/Abenier/TedyTech Admin/Admin-Ted"
+cd "d:/Abenier/Micky Mobile Admin/Admin-Ted"
 git status
 git push
 ```

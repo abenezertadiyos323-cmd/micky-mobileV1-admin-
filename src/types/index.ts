@@ -1,5 +1,5 @@
 // ============================================================
-// TedyTech Admin Mini App — TypeScript Types (DATA V2)
+// Micky Mobile Admin Mini App — TypeScript Types (DATA V2)
 // ============================================================
 
 // ---- Enums ----

@@ -30,7 +30,7 @@ const LOW_STOCK_THRESHOLD = 2;
 **Step 2: Commit**
 
 ```bash
-cd "d:/Abenier/TedyTech Admin/Admin-Ted"
+cd "d:/Abenier/Micky Mobile Admin/Admin-Ted"
 git add convex/products.ts
 git commit -m "fix: update low stock threshold to 2"
 ```
@@ -100,7 +100,7 @@ if (normalizedSearch) {
 **Step 3: Commit**
 
 ```bash
-cd "d:/Abenier/TedyTech Admin/Admin-Ted"
+cd "d:/Abenier/Micky Mobile Admin/Admin-Ted"
 git add convex/products.ts
 git commit -m "fix: implement space-aware search normalization"
 ```
@@ -135,7 +135,7 @@ if (ramGb !== undefined) {
 **Step 2: Commit**
 
 ```bash
-cd "d:/Abenier/TedyTech Admin/Admin-Ted"
+cd "d:/Abenier/Micky Mobile Admin/Admin-Ted"
 git add convex/products.ts
 git commit -m "feat(backend): add RAM filter support to listProducts"
 ```
@@ -188,7 +188,7 @@ ramGb: advancedFilters.ramGb,
 **Step 4: Commit**
 
 ```bash
-cd "d:/Abenier/TedyTech Admin/Admin-Ted"
+cd "d:/Abenier/Micky Mobile Admin/Admin-Ted"
 git add src/pages/Inventory.tsx
 git commit -m "feat(frontend): add RAM filter type and state"
 ```
@@ -234,7 +234,7 @@ After the Storage section (around line 812), add before the "Has Images" section
 **Step 2: Commit**
 
 ```bash
-cd "d:/Abenier/TedyTech Admin/Admin-Ted"
+cd "d:/Abenier/Micky Mobile Admin/Admin-Ted"
 git add src/pages/Inventory.tsx
 git commit -m "feat(frontend): add RAM filter UI to filter drawer"
 ```
@@ -340,7 +340,7 @@ Add this section before the Condition section (around line 730):
 **Step 5: Commit**
 
 ```bash
-cd "d:/Abenier/TedyTech Admin/Admin-Ted"
+cd "d:/Abenier/Micky Mobile Admin/Admin-Ted"
 git add src/pages/Inventory.tsx
 git commit -m "feat(frontend): add sort options to filter drawer"
 ```
@@ -354,7 +354,7 @@ Expected: Sort dropdown appears at top of filter drawer, sorting works on all op
 **Step 1: Deploy backend changes**
 
 ```bash
-cd "d:/Abenier/TedyTech Admin/Admin-Ted"
+cd "d:/Abenier/Micky Mobile Admin/Admin-Ted"
 npx convex deploy --yes
 ```
 
@@ -363,7 +363,7 @@ Expected: Deployment succeeds to prod (fastidious-schnauzer-265).
 **Step 2: Build frontend**
 
 ```bash
-cd "d:/Abenier/TedyTech Admin/Admin-Ted"
+cd "d:/Abenier/Micky Mobile Admin/Admin-Ted"
 npm run build
 ```
 

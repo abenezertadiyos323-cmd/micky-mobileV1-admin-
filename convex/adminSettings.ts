@@ -14,6 +14,8 @@ export const upsertSettings = mutation({
     storeName: v.optional(v.string()),
     supportContact: v.optional(v.string()),
     telegramBotLink: v.optional(v.string()),
+    storeAddress: v.optional(v.string()),
+    storeLocationLink: v.optional(v.string()),
     phoneLowStockThreshold: v.optional(v.number()),
     accessoryLowStockThreshold: v.optional(v.number()),
     exchangeAlertsEnabled: v.optional(v.boolean()),

@@ -1,6 +1,6 @@
-# TedyTech Admin Mini App
+# Micky Mobile Admin Mini App
 
-A **Telegram-embedded admin system** for a phone-selling business (TedyTech). Built as a mobile-first mini app for daily operations: inventory management, customer inbox, and exchange request handling.
+A **Telegram-embedded admin system** for a phone-selling business (Micky Mobile). Built as a mobile-first mini app for daily operations: inventory management, customer inbox, and exchange request handling.
 
 ---
 

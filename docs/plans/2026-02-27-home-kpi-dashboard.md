@@ -70,7 +70,7 @@ The `sender` field is unchanged — this is purely additive. Existing message cr
 ### Step 4: Deploy to dev to validate schema compiles
 
 ```bash
-cd "d:/Abenier/TedyTech Admin/Admin-Ted"
+cd "d:/Abenier/Micky Mobile Admin/Admin-Ted"
 npx convex dev --once
 ```
 Expected: exits 0, no errors.
@@ -986,7 +986,7 @@ git commit -m "feat(exchanges): add URL filter param awareness for deep links"
 ### Step 1: Run build
 
 ```bash
-cd "d:/Abenier/TedyTech Admin/Admin-Ted"
+cd "d:/Abenier/Micky Mobile Admin/Admin-Ted"
 npm run build
 ```
 

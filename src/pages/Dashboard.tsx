@@ -249,7 +249,7 @@ const GENERIC_TOPICS = [
   'Customer testimonials',
   'Fast delivery info',
   'Best deals this week',
-  'Why buy from TedyTech',
+  'Why buy from Micky Mobile',
 ];
 
 function getHook(phoneType: string): string {

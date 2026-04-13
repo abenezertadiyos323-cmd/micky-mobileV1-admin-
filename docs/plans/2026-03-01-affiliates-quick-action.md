@@ -56,7 +56,7 @@ The final `convex/schema.ts` closing should look like:
 **Step 2: Verify the schema compiles**
 
 ```bash
-cd "d:/Abenier/TedyTech Admin/Admin-Ted"
+cd "d:/Abenier/Micky Mobile Admin/Admin-Ted"
 npx tsc --noEmit
 ```
 
@@ -423,7 +423,7 @@ git commit -m "feat: add Affiliates quick action button and overview modal"
 **Step 1: Run the build**
 
 ```bash
-cd "d:/Abenier/TedyTech Admin/Admin-Ted"
+cd "d:/Abenier/Micky Mobile Admin/Admin-Ted"
 npm run build
 ```
 
@@ -441,7 +441,7 @@ No TypeScript errors, no Vite build errors. If there are errors, fix them before
 **Step 1: Deploy schema + new query to prod**
 
 ```bash
-cd "d:/Abenier/TedyTech Admin/Admin-Ted"
+cd "d:/Abenier/Micky Mobile Admin/Admin-Ted"
 npx convex deploy --yes
 ```
 
