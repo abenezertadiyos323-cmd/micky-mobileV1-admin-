@@ -15,8 +15,43 @@ export default function AuthGuard({ children }: { children: ReactNode }) {
 
   if (isAuthorized === undefined) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-6" style={{ background: 'var(--bg)' }}>
-         <div className="animate-pulse" style={{ color: 'var(--text)' }}>Verifying Admin Access...</div>
+      <div 
+        className="min-h-screen flex flex-col items-center justify-center p-6 relative overflow-hidden" 
+        style={{ 
+          background: '#000000',
+        }}
+      >
+        {/* Blurred Background Elements */}
+        <div 
+          className="absolute inset-0 opacity-20"
+          style={{
+            backgroundImage: 'url("/micky-logo.png")',
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            filter: 'blur(40px) scale(1.1)',
+          }}
+        />
+        
+        {/* Main Logo Container */}
+        <div className="relative z-10 flex flex-col items-center animate-in fade-in zoom-in duration-700">
+          <div className="w-32 h-32 mb-8 relative">
+            {/* Soft Glow */}
+            <div className="absolute inset-0 rounded-full bg-yellow-400/20 blur-2xl animate-pulse" />
+            
+            <img 
+              src="/micky-logo.png" 
+              alt="Micky Mobile" 
+              className="w-full h-full object-contain relative z-10 drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]"
+            />
+          </div>
+          
+          {/* Minimal Loading Indicator */}
+          <div className="flex gap-1.5 mt-4">
+            <div className="w-2 h-2 rounded-full bg-yellow-400 animate-bounce [animation-delay:-0.3s]" />
+            <div className="w-2 h-2 rounded-full bg-yellow-400 animate-bounce [animation-delay:-0.15s]" />
+            <div className="w-2 h-2 rounded-full bg-yellow-400 animate-bounce" />
+          </div>
+        </div>
       </div>
     );
   }
