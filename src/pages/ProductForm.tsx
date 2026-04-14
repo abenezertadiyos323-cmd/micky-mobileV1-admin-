@@ -1,14 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation } from 'convex/react';
-import { Camera, Archive, RotateCcw, X, Plus, Trash } from 'lucide-react';
+import { Camera, X, Plus, Trash } from 'lucide-react';
 import PageHeader from '../components/PageHeader';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { api } from '../../convex/_generated/api';
 import type { Id } from '../../convex/_generated/dataModel';
 import { getTelegramUser } from '../lib/telegram';
 import { processImage } from '../lib/imageProcessor';
-import { formatETB, getStockStatus } from '../lib/utils';
 import { normalizePhoneType, validatePhoneType } from '../lib/phoneTypeUtils';
 import { PHONE_STORAGE_OPTIONS } from '../lib/storageOptions';
 import type { Condition, ProductType } from '../types';
@@ -291,6 +290,30 @@ export default function ProductForm() {
       console.error(err);
       setSaveError(err instanceof Error ? err.message : 'Save failed');
     } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleArchive = async () => {
+    if (!id || !isEdit) return;
+    setSaving(true);
+    try {
+      await archiveProductMutation({ productId: id as Id<'products'> });
+      navigate(getInventoryPath());
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : 'Failed to archive');
+      setSaving(false);
+    }
+  };
+
+  const handleRestore = async () => {
+    if (!id || !isEdit) return;
+    setSaving(true);
+    try {
+      await restoreProductMutation({ productId: id as Id<'products'> });
+      navigate(getInventoryPath());
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : 'Failed to restore');
       setSaving(false);
     }
   };

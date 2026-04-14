@@ -1,4 +1,4 @@
-import { ReactNode, useEffect, useState } from "react";
+import type { ReactNode } from "react";
 import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { getTelegramInitData } from "../lib/telegram";
@@ -9,7 +9,7 @@ export default function AuthGuard({ children }: { children: ReactNode }) {
   const isDev = import.meta.env.MODE === 'development';
   
   // Verify access by decoding the telegram initData string securely on the backend
-  const isAuthorized = useQuery(api.admin.checkAdminAccess, { 
+  const isAuthorized = useQuery((api as any).admin.checkAdminAccess, { 
     initData: isDev && !initData ? 'MOCK_INIT_DATA' : initData 
   });
 

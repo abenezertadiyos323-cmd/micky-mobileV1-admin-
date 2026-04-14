@@ -140,6 +140,17 @@ export default defineSchema({
     model: v.optional(v.string()),
 
     // Additional phone specifications (optional)
+    batteryHealth: v.optional(v.string()),
+    modelOrigin: v.optional(v.string()),
+    network: v.optional(v.string()),
+    
+    // Dynamic Pricing Variants (e.g. storage capacities & RAM pairing)
+    variants: v.optional(v.array(v.object({
+      storage: v.string(),
+      ram: v.optional(v.string()),
+      price: v.number(),
+      stock: v.number()
+    }))),
     screenSize: v.optional(v.string()),
     battery: v.optional(v.string()),
     mainCamera: v.optional(v.string()),
