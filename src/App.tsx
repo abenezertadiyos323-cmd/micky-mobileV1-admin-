@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { initTelegram } from "./lib/telegram";
 import Layout from "./components/Layout";
 import ScrollToTop from "./components/ScrollToTop";
+import AuthGuard from "./components/AuthGuard";
 import Dashboard from "./pages/Dashboard";
 import Inventory from "./pages/Inventory";
 import ProductForm from "./pages/ProductForm";
@@ -23,7 +24,7 @@ export default function App() {
     <BrowserRouter>
       <ScrollToTop />
       <Routes>
-        <Route element={<Layout />}>
+        <Route element={<AuthGuard><Layout /></AuthGuard>}>
           <Route path="/" element={<Dashboard />} />
           <Route path="/inventory" element={<Inventory />} />
           <Route path="/inventory/add" element={<ProductForm />} />

@@ -17,7 +17,7 @@ type TelegramUser = {
   photo_url?: string;
 };
 
-function getEnvValue(name: string): string | undefined {
+export function getEnvValue(name: string): string | undefined {
   const runtime = globalThis as { process?: { env?: Record<string, string | undefined> } };
   return runtime.process?.env?.[name];
 }
@@ -87,7 +87,7 @@ async function hmacSha256(
   return new Uint8Array(signature);
 }
 
-async function verifyInitData(initData: string, botToken: string): Promise<TelegramUser> {
+export async function verifyInitData(initData: string, botToken: string): Promise<TelegramUser> {
   const params = new URLSearchParams(initData);
   const hash = params.get("hash");
   const authDateRaw = params.get("auth_date");
