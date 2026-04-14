@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { useQuery, useMutation } from 'convex/react';
-import { Camera, Archive, RotateCcw, X } from 'lucide-react';
+import { Camera, Archive, RotateCcw, X, Plus, Trash } from 'lucide-react';
 import PageHeader from '../components/PageHeader';
 import LoadingSpinner from '../components/LoadingSpinner';
 import { api } from '../../convex/_generated/api';
@@ -10,52 +10,41 @@ import { getTelegramUser } from '../lib/telegram';
 import { processImage } from '../lib/imageProcessor';
 import { formatETB, getStockStatus } from '../lib/utils';
 import { normalizePhoneType, validatePhoneType } from '../lib/phoneTypeUtils';
-import {
-  PHONE_STORAGE_OPTIONS,
-  formatPhoneStorageDisplay,
-  getPhoneStorageDisplay,
-  parsePhoneStorageOptions,
-  type PhoneStorageOption,
-} from '../lib/storageOptions';
-import { getBackendInfo } from '../lib/backend';
+import { PHONE_STORAGE_OPTIONS } from '../lib/storageOptions';
 import type { Condition, ProductType } from '../types';
 
 const CONDITIONS: Condition[] = ['New', 'Like New', 'Excellent', 'Good', 'Fair', 'Poor'];
-const CONDITION_DESCRIPTIONS: Record<Condition, string> = {
-  New: 'Sealed box, never used',
-  'Like New': 'Opened but mint, no marks',
-  Excellent: 'Barely used, minimal wear',
-  Good: 'Light wear, fully functional',
-  Fair: 'Visible wear, all features work',
-  Poor: 'Heavy wear or minor issues',
-};
 
 const RAM_OPTIONS = ['8GB', '12GB'] as const;
-type RamOption = (typeof RAM_OPTIONS)[number];
-const RAM_DESCRIPTIONS: Record<RamOption, string> = {
-  '8GB': 'Balanced daily performance',
-  '12GB': 'High performance multitasking',
-};
+
+export interface VariantInput {
+  id: string; // UI key
+  storage: string;
+  ram: string; // For Samsung
+  priceText: string;
+  stockQuantity: string;
+}
 
 interface FormData {
   type: ProductType;
+  brand: 'iPhone' | 'Samsung' | '';
   phoneType: string;
-  ram: RamOption | '';
-  storageOptions: PhoneStorageOption[];
   condition: Condition | '';
-  price: number | null;
-  stockQuantity: string;
   exchangeEnabled: boolean;
   description: string;
-  // Additional specifications
-  screenSize: string;
-  battery: string;
-  mainCamera: string;
-  selfieCamera: string;
-  simType: string;
-  color: string;
-  operatingSystem: string;
-  features: string;
+  
+  // Specifics
+  batteryHealth: string;
+  modelOrigin: string; // iPhone
+  simType: string; // Uses as SIM Type / SIM Slot
+  network: string; // Samsung
+  
+  // Variant system
+  variants: VariantInput[];
+  
+  // Accessory fallback
+  priceText: string;
+  stockQuantity: string;
 }
 
 interface ImageSlot {
@@ -64,22 +53,12 @@ interface ImageSlot {
 }
 
 const IMAGE_SLOT_COUNT = 3;
-
 const formatPriceForInput = (price: number) => price.toLocaleString('en-US');
-
 const parsePriceInput = (value: string): number | null => {
   const digitsOnly = value.replace(/\D/g, '');
   if (!digitsOnly) return null;
   const parsed = Number.parseInt(digitsOnly, 10);
   return Number.isNaN(parsed) ? null : parsed;
-};
-
-const normalizeRamOption = (value: string | null | undefined): RamOption | '' => {
-  if (!value) return '';
-  const compact = value.trim().toUpperCase().replace(/\s+/g, '');
-  if (compact === '8GB' || compact === '8') return '8GB';
-  if (compact === '12GB' || compact === '12') return '12GB';
-  return '';
 };
 
 const isProductType = (value: string | null): value is ProductType =>
@@ -95,26 +74,23 @@ export default function ProductForm() {
 
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  
   const [form, setForm] = useState<FormData>({
     type: defaultType,
+    brand: defaultType === 'phone' ? 'iPhone' : '',
     phoneType: '',
-    ram: '',
-    storageOptions: [],
     condition: '',
-    price: null,
-    stockQuantity: '1',
     exchangeEnabled: false,
     description: '',
-    screenSize: '',
-    battery: '',
-    mainCamera: '',
-    selfieCamera: '',
+    batteryHealth: '',
+    modelOrigin: '',
     simType: '',
-    color: '',
-    operatingSystem: '',
-    features: '',
+    network: '',
+    variants: [{ id: Date.now().toString(), storage: '', ram: '', priceText: '', stockQuantity: '1' }],
+    priceText: '',
+    stockQuantity: '1',
   });
-  const [priceText, setPriceText] = useState('');
+  
   const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>({});
   const [imageSlots, setImageSlots] = useState<Array<ImageSlot | null>>(
     () => Array.from({ length: IMAGE_SLOT_COUNT }, () => null),
@@ -125,44 +101,49 @@ export default function ProductForm() {
 
   const user = getTelegramUser();
   const getInventoryPath = () => {
-    const queryType = searchParams.get('type');
-    const inventoryType = isProductType(queryType) ? queryType : form.type;
-    return `/inventory?type=${inventoryType}`;
+    return `/inventory?type=${form.type}`;
   };
 
-  // ---- Convex: load existing product (edit mode only) ----
   const existingProduct = useQuery(
     api.products.getProductById,
     isEdit && id ? { productId: id as Id<'products'> } : 'skip',
   );
   const loading = isEdit && existingProduct === undefined;
 
-  // Populate form once when the query first returns a result
   useEffect(() => {
     if (existingProduct && !formPopulated.current) {
       formPopulated.current = true;
+      
+      let mappedBrand: 'iPhone' | 'Samsung' | '' = '';
+      if (existingProduct.type === 'phone') {
+        const legacyBrand = existingProduct.brand?.toLowerCase() || '';
+        if (legacyBrand.includes('apple') || legacyBrand.includes('iphone')) mappedBrand = 'iPhone';
+        else if (legacyBrand.includes('samsung')) mappedBrand = 'Samsung';
+        else mappedBrand = 'iPhone'; // default
+      }
+
       setForm({
         type: existingProduct.type,
+        brand: mappedBrand,
         phoneType: existingProduct.phoneType ?? '',
-        ram: normalizeRamOption(existingProduct.ram),
-        storageOptions: parsePhoneStorageOptions(
-          existingProduct.storageOptions ?? existingProduct.storage ?? '',
-        ),
-        condition: existingProduct.condition ?? '',
-        price: existingProduct.price,
-        stockQuantity: String(existingProduct.stockQuantity),
+        condition: (existingProduct.condition as Condition) ?? '',
         exchangeEnabled: existingProduct.type === 'phone' ? existingProduct.exchangeEnabled : false,
         description: existingProduct.description ?? '',
-        screenSize: existingProduct.screenSize ?? '',
-        battery: existingProduct.battery ?? '',
-        mainCamera: existingProduct.mainCamera ?? '',
-        selfieCamera: existingProduct.selfieCamera ?? '',
+        batteryHealth: existingProduct.batteryHealth ?? '',
+        modelOrigin: existingProduct.modelOrigin ?? '',
         simType: existingProduct.simType ?? '',
-        color: existingProduct.color ?? '',
-        operatingSystem: existingProduct.operatingSystem ?? '',
-        features: existingProduct.features ?? '',
+        network: existingProduct.network ?? '',
+        variants: existingProduct.variants?.map((v, i) => ({
+          id: String(i),
+          storage: v.storage,
+          ram: v.ram ?? '',
+          priceText: v.price > 0 ? formatPriceForInput(v.price) : '',
+          stockQuantity: String(v.stock)
+        })) || [{ id: Date.now().toString(), storage: '', ram: '', priceText: '', stockQuantity: '1' }],
+        priceText: existingProduct.price > 0 ? formatPriceForInput(existingProduct.price) : '',
+        stockQuantity: String(existingProduct.stockQuantity),
       });
-      setPriceText(existingProduct.price > 0 ? formatPriceForInput(existingProduct.price) : '');
+      
       const existingImages = Array.isArray(existingProduct.images) ? existingProduct.images : [];
       setImageSlots(
         Array.from({ length: IMAGE_SLOT_COUNT }, (_, index) => {
@@ -174,14 +155,12 @@ export default function ProductForm() {
     }
   }, [existingProduct]);
 
-  // Accessories never support exchange, so clear any stale truthy state.
   useEffect(() => {
     if (form.type === 'accessory' && form.exchangeEnabled) {
       setForm((prev) => ({ ...prev, exchangeEnabled: false }));
     }
   }, [form.type, form.exchangeEnabled]);
 
-  // ---- Convex mutations ----
   const generateUploadUrl = useMutation(api.files.generateUploadUrl);
   const getStorageUrl = useMutation(api.files.getStorageUrl);
   const createProductMutation = useMutation(api.products.createProduct);
@@ -189,7 +168,6 @@ export default function ProductForm() {
   const archiveProductMutation = useMutation(api.products.archiveProduct);
   const restoreProductMutation = useMutation(api.products.restoreProduct);
 
-  // ---- Image picker ----
   const handleSlotPress = (slotIndex: number) => {
     setPickerSlot(slotIndex);
     fileInputRef.current?.click();
@@ -201,7 +179,6 @@ export default function ProductForm() {
       next[slotIndex] = null;
       return next;
     });
-    if (saveError) setSaveError(null);
   };
 
   const handleFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -218,108 +195,90 @@ export default function ProductForm() {
     setPickerSlot(null);
   };
 
-  // Upload newly selected images and return URL strings in slot order.
   const uploadImageUrls = async (): Promise<string[]> => {
     const uploadedBySlot = new Map<number, string>();
-
     for (let slotIndex = 0; slotIndex < imageSlots.length; slotIndex += 1) {
       const slot = imageSlots[slotIndex];
       if (!slot?.blob) continue;
-
       const uploadUrl = await generateUploadUrl({});
       const resp = await fetch(uploadUrl, {
         method: 'POST',
         headers: { 'Content-Type': slot.blob.type },
         body: slot.blob,
       });
-      if (!resp.ok) {
-        throw new Error(`Image ${slotIndex + 1} upload failed`);
-      }
-
+      if (!resp.ok) throw new Error(`Image ${slotIndex + 1} upload failed`);
       const { storageId } = (await resp.json()) as { storageId?: string };
-      if (!storageId) {
-        throw new Error(`Image ${slotIndex + 1} upload response missing storageId`);
-      }
-
       const resolvedUrl = await getStorageUrl({ storageId: storageId as Id<'_storage'> });
-      if (!resolvedUrl || typeof resolvedUrl !== 'string') {
-        throw new Error(`Image ${slotIndex + 1} URL resolution failed`);
-      }
-
-      uploadedBySlot.set(slotIndex, resolvedUrl);
+      uploadedBySlot.set(slotIndex, resolvedUrl as string);
     }
-
     return imageSlots
-      .map((slot, slotIndex) => {
-        const uploadedUrl = uploadedBySlot.get(slotIndex);
-        if (uploadedUrl) return uploadedUrl;
-        if (!slot || slot.blob) return null;
-        const existingUrl = slot.preview.trim();
-        return existingUrl.length > 0 ? existingUrl : null;
-      })
+      .map((slot, slotIndex) => uploadedBySlot.get(slotIndex) || (slot && !slot.blob ? slot.preview : null))
       .filter((url): url is string => url !== null)
       .slice(0, IMAGE_SLOT_COUNT);
   };
 
-  // ---- Validation ----
   const validate = (): boolean => {
     const newErrors: Partial<Record<keyof FormData, string>> = {};
     const validation = validatePhoneType(form.phoneType);
     if (!validation.valid) newErrors.phoneType = validation.error || 'Phone type is required';
-    if (form.price === null || !Number.isFinite(form.price) || form.price <= 0) newErrors.price = 'Valid price required';
-    if (!form.stockQuantity || Number(form.stockQuantity) < 0) newErrors.stockQuantity = 'Valid quantity required';
-    if (form.type === 'phone' && form.storageOptions.length === 0) {
-      newErrors.storageOptions = 'Select at least one storage size';
-    }
     if (form.type === 'phone' && !form.condition) newErrors.condition = 'Condition required for phones';
+    
+    if (form.type === 'phone') {
+        if (form.variants.length === 0) newErrors.variants = 'Must add at least one variant';
+        const invalidVariants = form.variants.filter(v => !v.storage || !parsePriceInput(v.priceText) || !v.stockQuantity);
+        if (invalidVariants.length > 0) newErrors.variants = 'All variants must have storage, valid price, and stock';
+    } else {
+        const safePrice = parsePriceInput(form.priceText);
+        if (safePrice === null || !Number.isFinite(safePrice) || safePrice <= 0) newErrors.priceText = 'Valid price required';
+        if (!form.stockQuantity || Number(form.stockQuantity) < 0) newErrors.stockQuantity = 'Valid quantity required';
+    }
+    
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  // ---- Save: upload images then create / update product ----
   const handleSave = async () => {
     setSaveError(null);
     if (!validate()) return;
-
-    // Safety net: re-derive price directly from the displayed priceText string.
-    // This guarantees we never send NaN, null, or a comma-formatted string to Convex
-    // even if form.price somehow desynchronised from priceText.
-    const safePrice = parsePriceInput(priceText);
-    if (safePrice === null || !Number.isFinite(safePrice) || safePrice <= 0) {
-      setErrors((prev) => ({ ...prev, price: 'Valid price required' }));
-      return;
-    }
-
     setSaving(true);
+    
     try {
       const allImages = await uploadImageUrls();
-      const storageDisplay = formatPhoneStorageDisplay(form.storageOptions);
       const sellerId = String(user.id);
+      
+      const mappedVariants = form.type === 'phone' ? form.variants.map(v => ({
+        storage: v.storage,
+        ram: form.brand === 'Samsung' && v.ram ? v.ram : undefined,
+        price: parsePriceInput(v.priceText) || 0,
+        stock: Number(v.stockQuantity) || 0
+      })).filter(v => v.price > 0 && v.stock >= 0) : undefined;
+      
+      const basePrice = form.type === 'phone' && mappedVariants && mappedVariants.length > 0
+        ? Math.min(...mappedVariants.map(v => v.price))
+        : parsePriceInput(form.priceText) || 0;
+        
+      const baseStock = form.type === 'phone' && mappedVariants
+        ? mappedVariants.reduce((sum, v) => sum + v.stock, 0)
+        : Number(form.stockQuantity);
 
       const common = {
         type: form.type,
+        brand: form.type === 'phone' ? (form.brand === 'iPhone' ? 'Apple' : 'Samsung') : undefined,
         phoneType: normalizePhoneType(form.phoneType),
-        ram: form.type === 'phone' ? form.ram || undefined : undefined,
-        storage: form.type === 'phone' ? storageDisplay : undefined,
-        storageOptions: form.type === 'phone' && form.storageOptions.length > 0
-          ? form.storageOptions
-          : undefined,
+        storage: form.type === 'phone' && mappedVariants ? mappedVariants.map(v => v.storage).join(', ') : undefined,
         condition: form.type === 'phone' ? (form.condition as Condition) || undefined : undefined,
-        price: safePrice,
-        stockQuantity: Number(form.stockQuantity),
+        price: basePrice,
+        stockQuantity: baseStock,
         exchangeEnabled: form.type === 'phone' ? form.exchangeEnabled : false,
         description: form.description || undefined,
         images: allImages,
         updatedBy: sellerId,
-        // Additional specifications (only send if not empty)
-        screenSize: form.screenSize || undefined,
-        battery: form.battery || undefined,
-        mainCamera: form.mainCamera || undefined,
-        selfieCamera: form.selfieCamera || undefined,
-        simType: form.simType || undefined,
-        color: form.color || undefined,
-        operatingSystem: form.operatingSystem || undefined,
-        features: form.features || undefined,
+        
+        batteryHealth: form.type === 'phone' && form.brand === 'iPhone' ? form.batteryHealth || undefined : undefined,
+        modelOrigin: form.type === 'phone' && form.brand === 'iPhone' ? form.modelOrigin || undefined : undefined,
+        simType: form.type === 'phone' ? form.simType || undefined : undefined,
+        network: form.type === 'phone' && form.brand === 'Samsung' ? form.network || undefined : undefined,
+        variants: mappedVariants,
       };
 
       if (isEdit && id) {
@@ -329,135 +288,59 @@ export default function ProductForm() {
       }
       navigate(getInventoryPath());
     } catch (err) {
-      console.error('[ProductForm] save failed:', err);
-      setSaveError(
-        err instanceof Error ? err.message : 'Save failed — please try again.',
-      );
+      console.error(err);
+      setSaveError(err instanceof Error ? err.message : 'Save failed');
     } finally {
       setSaving(false);
     }
   };
 
-  const handleArchive = async () => {
-    if (!id) return;
-    setSaving(true);
-    await archiveProductMutation({ productId: id as Id<'products'> });
-    navigate(getInventoryPath());
-  };
-
-  const handleRestore = async () => {
-    if (!id) return;
-    setSaving(true);
-    await restoreProductMutation({ productId: id as Id<'products'> });
-    navigate(getInventoryPath());
-  };
-
   const update = <K extends keyof FormData>(key: K, value: FormData[K]) => {
-    setForm((prev) => {
-      const next = { ...prev, [key]: value } as FormData;
-      if (key === 'type' && value === 'accessory') {
-        next.exchangeEnabled = false;
-      }
-      return next;
-    });
+    setForm((prev) => ({ ...prev, [key]: value }));
     if (errors[key]) setErrors((prev) => ({ ...prev, [key]: undefined }));
-    if (saveError) setSaveError(null);
+  };
+  
+  const updateVariant = (index: number, key: keyof VariantInput, value: string) => {
+      const newVariants = [...form.variants];
+      newVariants[index] = { ...newVariants[index], [key]: value };
+      update('variants', newVariants);
+  };
+  
+  const addVariant = () => {
+      update('variants', [...form.variants, { id: Date.now().toString(), storage: '', ram: '', priceText: '', stockQuantity: '1' }]);
+  };
+  
+  const removeVariant = (index: number) => {
+      if (form.variants.length > 1) {
+          update('variants', form.variants.filter((_, i) => i !== index));
+      }
   };
 
-  const handlePriceChange = (value: string) => {
-    const parsed = parsePriceInput(value);
-    update('price', parsed);
-    setPriceText(parsed === null ? '' : formatPriceForInput(parsed));
-  };
-
-  const toggleStorageOption = (option: PhoneStorageOption) => {
-    const nextOptions = form.storageOptions.includes(option)
-      ? form.storageOptions.filter((value) => value !== option)
-      : [...form.storageOptions, option];
-    update('storageOptions', nextOptions);
-  };
-
-  const toggleRamOption = (option: RamOption) => {
-    update('ram', form.ram === option ? '' : option);
-  };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-screen bg-bg">
-        <LoadingSpinner size="lg" />
-      </div>
-    );
-  }
-
-  if (isEdit && existingProduct === null) {
-    return (
-      <div className="flex flex-col items-center justify-center h-screen bg-bg gap-3 px-6 text-center">
-        <p className="text-app-text font-semibold">Product not found</p>
-        <p className="text-muted text-sm">This product may have been deleted.</p>
-        <button
-          onClick={() => navigate(getInventoryPath())}
-          className="mt-2 text-primary text-sm font-semibold active:scale-95 transition-transform"
-        >
-          ← Back to Inventory
-        </button>
-      </div>
-    );
-  }
+  if (loading) return <div className="flex items-center justify-center h-screen bg-bg"><LoadingSpinner size="lg" /></div>;
 
   const isPhone = form.type === 'phone';
-  const selectedStorageLabel = getPhoneStorageDisplay(
-    undefined,
-    form.storageOptions,
-  );
-  const stockStatus = getStockStatus(Number(form.stockQuantity) || 0);
-  const debugBackendInfo = getBackendInfo(import.meta.env.VITE_CONVEX_URL ?? '');
-  const debugHostname = debugBackendInfo.hostname ?? debugBackendInfo.label ?? 'unset';
+  const isIphone = form.brand === 'iPhone';
 
   return (
     <div className="min-h-screen bg-bg">
-      <PageHeader
-        title={isEdit ? 'Edit Product' : `Add ${defaultType === 'phone' ? 'Phone' : 'Accessory'}`}
-        showBack
-      />
-
+      <PageHeader title={isEdit ? 'Edit Product' : `Add ${defaultType === 'phone' ? 'Phone' : 'Accessory'}`} showBack />
         <div className="px-4 py-4 space-y-4" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 24px)' }}>
-          {/* Images */}
+          {/* Images Picker */}
           <div className="card-interactive p-4 cursor-default">
             <p className="text-xs font-semibold text-muted uppercase tracking-wide mb-3">Images</p>
-
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={handleFileSelected}
-            />
-
+            <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleFileSelected} />
             <div className="grid grid-cols-3 gap-3">
-              {Array.from({ length: IMAGE_SLOT_COUNT }, (_, slotIndex) => {
-                const displayUrl = imageSlots[slotIndex]?.preview;
+              {Array.from({ length: IMAGE_SLOT_COUNT }, (_, i) => {
+                const displayUrl = imageSlots[i]?.preview;
                 return (
-                  <div key={slotIndex} className="space-y-1">
-                    <p className="text-[11px] text-muted font-medium">Upload Image {slotIndex + 1}</p>
+                  <div key={i} className="space-y-1">
+                    <p className="text-[11px] text-muted font-medium">Upload Image {i + 1}</p>
                     <div className="relative">
-                      <button
-                        type="button"
-                        onClick={() => handleSlotPress(slotIndex)}
-                        className="w-full h-20 rounded-xl border-2 border-dashed flex items-center justify-center bg-surface-2 overflow-hidden active:scale-95 transition-transform border-[var(--border)]"
-                      >
-                        {displayUrl ? (
-                          <img src={displayUrl} alt="" className="w-full h-full object-cover" />
-                        ) : (
-                          <Camera size={20} className="text-muted" />
-                        )}
+                      <button type="button" onClick={() => handleSlotPress(i)} className="w-full h-20 rounded-xl border-2 border-dashed flex items-center justify-center bg-surface-2 active:scale-95 transition-transform border-[var(--border)]">
+                        {displayUrl ? <img src={displayUrl} alt="" className="w-full h-full object-cover" /> : <Camera size={20} className="text-muted" />}
                       </button>
                       {displayUrl && (
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveImage(slotIndex)}
-                          className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/70 text-white flex items-center justify-center active:scale-95 transition-transform"
-                          aria-label={`Remove image ${slotIndex + 1}`}
-                        >
+                        <button type="button" onClick={() => handleRemoveImage(i)} className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/70 text-white flex items-center justify-center">
                           <X size={12} />
                         </button>
                       )}
@@ -466,255 +349,209 @@ export default function ProductForm() {
                 );
               })}
             </div>
-            <p className="text-[11px] text-muted mt-2">Upload up to 3 images. Remove any image with the X button.</p>
           </div>
 
           {/* Basic Info */}
           <div className="card-interactive p-4 space-y-4 cursor-default">
             <p className="text-xs font-semibold text-muted uppercase tracking-wide">Basic Info</p>
-
-            {/* Type (new products only) */}
-            {!isEdit && (
-              <div>
-                <label className="text-xs font-medium text-app-text mb-1.5 block">Type</label>
-                <div className="flex gap-2">
-                  {(['phone', 'accessory'] as ProductType[]).map((t) => (
-                    <button
-                      key={t}
-                      onClick={() => update('type', t)}
-                      className="flex-1 py-2.5 rounded-xl text-sm font-semibold capitalize transition-all"
-                      style={form.type === t
-                        ? { background: 'var(--primary)', color: 'var(--primary-foreground)' }
-                        : { background: 'var(--surface-2)', color: 'var(--muted)' }
-                      }
-                    >
-                      {t}
-                    </button>
-                  ))}
+            
+            {/* Phone Brand Pill */}
+            {isPhone && !isEdit && (
+                <div>
+                  <label className="text-xs font-medium text-app-text mb-1.5 block">Brand</label>
+                  <div className="flex gap-2">
+                    {(['iPhone', 'Samsung'] as const).map((b) => (
+                      <button
+                        key={b}
+                        onClick={() => update('brand', b)}
+                        className="flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all"
+                        style={form.brand === b ? { background: 'var(--primary)', color: 'var(--primary-foreground)' } : { background: 'var(--surface-2)', color: 'var(--muted)' }}
+                      >
+                        {b}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
             )}
 
-            {/* Phone Type / Accessory Name */}
             <div>
-              <label className="text-xs font-medium text-app-text mb-1.5 block">
-                {isPhone ? 'Phone Type *' : 'Accessory Name *'}
-              </label>
-              <input
-                type="text"
-                value={form.phoneType}
-                onChange={(e) => update('phoneType', e.target.value)}
-                placeholder={isPhone ? 'e.g. iPhone 13 Pro Max' : 'e.g. AirPods Pro 2nd Gen'}
-                className={`w-full bg-surface-2 border rounded-xl px-3 py-2.5 text-sm text-app-text placeholder:text-muted outline-none transition-colors ${errors.phoneType ? 'border-red-400 bg-red-950/40' : 'border-[var(--border)]'
-                  }`}
-              />
+              <label className="text-xs font-medium text-app-text mb-1.5 block">{isPhone ? 'Phone Type *' : 'Accessory Name *'}</label>
+              <input type="text" value={form.phoneType} onChange={(e) => update('phoneType', e.target.value)} placeholder={isPhone ? 'e.g. iPhone 15 Pro Max' : 'e.g. AirPods Pro'} className="w-full bg-surface-2 border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm text-app-text outline-none" />
               {errors.phoneType && <p className="text-xs text-red-500 mt-1">{errors.phoneType}</p>}
             </div>
 
-            {/* Phone-specific fields */}
+            {/* Condition (Phone only) */}
             {isPhone && (
-              <>
+              <div>
+                <label className="text-xs font-medium text-app-text mb-1.5 block">Condition *</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {CONDITIONS.map((c) => (
+                    <button key={c} onClick={() => update('condition', c)} className="p-2 border rounded-xl text-xs font-semibold" style={form.condition === c ? { border: '1px solid var(--primary)', background: 'rgba(245,196,0,0.12)', color: 'var(--primary)' } : { border: '1px solid var(--border)', background: 'var(--surface-2)', color: 'var(--text)' }}>
+                      {c}
+                    </button>
+                  ))}
+                </div>
+                {errors.condition && <p className="text-xs text-red-500 mt-1">{errors.condition}</p>}
+              </div>
+            )}
+            
+            {/* Accessory Price and Stock Fallbacks */}
+            {!isPhone && (
+                <>
                 <div>
-                  <div className="flex items-center justify-between gap-3 mb-1.5">
-                    <label className="text-xs font-medium text-app-text block">Storage *</label>
-                    {selectedStorageLabel && (
-                      <span className="text-[11px] font-semibold" style={{ color: 'var(--primary)' }}>
-                        {selectedStorageLabel}
-                      </span>
+                    <label className="text-xs font-medium text-app-text mb-1.5 block">Price (ETB) *</label>
+                    <input type="text" value={form.priceText} onChange={(e) => update('priceText', formatPriceForInput(parsePriceInput(e.target.value) || 0))} placeholder="e.g. 5000" className="w-full bg-surface-2 border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm text-app-text outline-none" />
+                </div>
+                <div>
+                    <label className="text-xs font-medium text-app-text mb-1.5 block">Stock Quantity *</label>
+                    <input type="number" value={form.stockQuantity} onChange={(e) => update('stockQuantity', e.target.value)} placeholder="e.g. 10" className="w-full bg-surface-2 border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm text-app-text outline-none" />
+                </div>
+                </>
+            )}
+          </div>
+          
+          {/* Variant Builder (Phone only) */}
+          {isPhone && (
+              <div className="card-interactive p-4 space-y-4 cursor-default border-t border-[var(--border)]">
+                 <div className="flex justify-between items-center">
+                    <p className="text-xs font-semibold text-muted uppercase tracking-wide">Pricing Variants</p>
+                    <button onClick={addVariant} className="text-primary text-xs font-bold flex items-center gap-1 active:scale-95"><Plus size={14}/> Add Setup</button>
+                 </div>
+                 <p className="text-[11px] text-muted -mt-2">Add a row for each storage & RAM capacity you have.</p>
+                 
+                 {errors.variants && <p className="text-xs text-red-500">{errors.variants}</p>}
+
+                 <div className="space-y-3">
+                    {form.variants.map((v, index) => (
+                        <div key={v.id} className="relative p-3 rounded-xl border border-[var(--border)] bg-surface-2 space-y-3">
+                            {form.variants.length > 1 && (
+                                <button onClick={() => removeVariant(index)} className="absolute top-2 right-2 text-red-400 p-1 active:scale-90"><Trash size={14}/></button>
+                            )}
+                            <div className="grid grid-cols-2 gap-2 pr-6">
+                                <div>
+                                    <label className="text-[10px] uppercase font-bold text-muted mb-1 block">Storage</label>
+                                    <select value={v.storage} onChange={(e) => updateVariant(index, 'storage', e.target.value)} className="w-full bg-surface border border-[var(--border)] rounded-lg px-2 py-1.5 text-xs text-app-text outline-none">
+                                        <option value="">Select...</option>
+                                        {PHONE_STORAGE_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                                    </select>
+                                </div>
+                                {!isIphone && (
+                                    <div>
+                                        <label className="text-[10px] uppercase font-bold text-muted mb-1 block">RAM</label>
+                                        <select value={v.ram} onChange={(e) => updateVariant(index, 'ram', e.target.value)} className="w-full bg-surface border border-[var(--border)] rounded-lg px-2 py-1.5 text-xs text-app-text outline-none">
+                                            <option value="">Select...</option>
+                                            {RAM_OPTIONS.map(opt => <option key={opt} value={opt}>{opt}</option>)}
+                                        </select>
+                                    </div>
+                                )}
+                            </div>
+                            <div className="grid grid-cols-2 gap-2 pr-6">
+                                <div>
+                                    <label className="text-[10px] uppercase font-bold text-muted mb-1 block">Price (ETB) *</label>
+                                    <input type="text" value={v.priceText} onChange={(e) => updateVariant(index, 'priceText', formatPriceForInput(parsePriceInput(e.target.value) || 0))} placeholder="e.g. 65000" className="w-full bg-surface border border-[var(--border)] rounded-lg px-2 py-1.5 text-xs text-app-text outline-none" />
+                                </div>
+                                <div>
+                                    <label className="text-[10px] uppercase font-bold text-muted mb-1 block">Stock *</label>
+                                    <input type="number" min="0" value={v.stockQuantity} onChange={(e) => updateVariant(index, 'stockQuantity', e.target.value)} className="w-full bg-surface border border-[var(--border)] rounded-lg px-2 py-1.5 text-xs text-app-text outline-none" />
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                 </div>
+              </div>
+          )}
+          
+          {/* Brand Technical Specifics (Phone only) */}
+          {isPhone && (
+               <div className="card-interactive p-4 space-y-4 cursor-default">
+                    <p className="text-xs font-semibold text-muted uppercase tracking-wide">Technical Specifics</p>
+                    
+                    {/* iPhone specific blocks */}
+                    {isIphone ? (
+                        <div className="grid grid-cols-2 gap-3">
+                            <div>
+                                <label className="text-xs font-medium text-app-text mb-1.5 block">Battery Health</label>
+                                <input type="text" value={form.batteryHealth} onChange={(e) => update('batteryHealth', e.target.value)} placeholder="e.g. 86% or 100%" className="w-full bg-surface-2 border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm text-app-text outline-none" />
+                            </div>
+                            <div>
+                                <label className="text-xs font-medium text-app-text mb-1.5 block">Model Origin</label>
+                                <input type="text" value={form.modelOrigin} onChange={(e) => update('modelOrigin', e.target.value)} placeholder="e.g. LL/A or ZD/A" className="w-full bg-surface-2 border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm text-app-text outline-none" />
+                            </div>
+                            <div>
+                                <label className="text-xs font-medium text-app-text mb-1.5 block">SIM Type</label>
+                                <select value={form.simType} onChange={(e) => update('simType', e.target.value)} className="w-full bg-surface-2 border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm text-app-text outline-none">
+                                    <option value="">Select...</option>
+                                    <option value="Physical Dual SIM">Physical Dual SIM</option>
+                                    <option value="Physical + eSIM">Physical + eSIM</option>
+                                    <option value="eSIM Only">eSIM Only</option>
+                                </select>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-2 gap-3">
+                            <div>
+                                <label className="text-xs font-medium text-app-text mb-1.5 block">Network</label>
+                                <select value={form.network} onChange={(e) => update('network', e.target.value)} className="w-full bg-surface-2 border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm text-app-text outline-none">
+                                    <option value="">Select...</option>
+                                    <option value="5G">5G</option>
+                                    <option value="LTE">LTE</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="text-xs font-medium text-app-text mb-1.5 block">SIM Slot</label>
+                                <select value={form.simType} onChange={(e) => update('simType', e.target.value)} className="w-full bg-surface-2 border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm text-app-text outline-none">
+                                    <option value="">Select...</option>
+                                    <option value="Dual SIM">Dual SIM</option>
+                                    <option value="Single SIM">Single SIM</option>
+                                </select>
+                            </div>
+                        </div>
                     )}
-                  </div>
-                  <div className="grid grid-cols-3 gap-2">
-                    {PHONE_STORAGE_OPTIONS.map((option) => {
-                      const selected = form.storageOptions.includes(option);
-                      return (
-                        <button
-                          key={option}
-                          type="button"
-                          onClick={() => toggleStorageOption(option)}
-                          className="p-2.5 rounded-xl border text-center transition-all"
-                          style={selected
-                            ? { background: 'rgba(245,196,0,0.12)', border: '1px solid var(--primary)' }
-                            : { background: 'var(--surface-2)', border: '1px solid var(--border)' }
-                          }
-                        >
-                          <p className="text-xs font-semibold" style={{ color: selected ? 'var(--primary)' : 'var(--text)' }}>
-                            {option}
-                          </p>
-                        </button>
-                      );
-                    })}
-                  </div>
-                  <p className="text-[11px] text-muted mt-2">Select every storage size available for this phone.</p>
-                  {errors.storageOptions && <p className="text-xs text-red-500 mt-1">{errors.storageOptions}</p>}
-                </div>
+               </div>
+          )}
 
-                <div>
-                  <label className="text-xs font-medium text-app-text mb-1.5 block">RAM</label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {RAM_OPTIONS.map((option) => {
-                      const selected = form.ram === option;
-                      return (
-                        <button
-                          key={option}
-                          type="button"
-                          onClick={() => toggleRamOption(option)}
-                          className="p-2.5 rounded-xl border text-left transition-all"
-                          style={selected
-                            ? { background: 'rgba(245,196,0,0.12)', border: '1px solid var(--primary)' }
-                            : { background: 'var(--surface-2)', border: '1px solid var(--border)' }
-                          }
-                        >
-                          <p className="text-xs font-semibold" style={{ color: selected ? 'var(--primary)' : 'var(--text)' }}>{option}</p>
-                          <p className="text-[10px] text-muted mt-0.5">{RAM_DESCRIPTIONS[option]}</p>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              <div>
-                <label className="text-xs font-medium text-app-text mb-1.5 block">Price (ETB) *</label>
-                <input
-                  type="text"
-                  value={priceText}
-                  onChange={(e) => handlePriceChange(e.target.value)}
-                  placeholder="e.g. 85000"
-                  inputMode="numeric"
-                  className={`w-full bg-surface-2 border rounded-xl px-3 py-2.5 text-sm text-app-text placeholder:text-muted outline-none transition-colors ${errors.price ? 'border-red-400 bg-red-950/40' : 'border-[var(--border)]'
-                    }`}
-                />
-                {errors.price && <p className="text-xs text-red-500 mt-1">{errors.price}</p>}
-                {form.price !== null && form.price > 0 && (
-                  <p className="text-[11px] mt-1" style={{ color: 'var(--primary)' }}>{formatETB(form.price)}</p>
-                )}
-              </div>
-              <div>
-                <label className="text-xs font-medium text-app-text mb-1.5 block">Stock Qty *</label>
-                <input
-                  type="number"
-                  value={form.stockQuantity}
-                  onChange={(e) => update('stockQuantity', e.target.value)}
-                  placeholder="e.g. 3"
-                  min="0"
-                  className={`w-full bg-surface-2 border rounded-xl px-3 py-2.5 text-sm text-app-text placeholder:text-muted outline-none transition-colors ${errors.stockQuantity ? 'border-red-400 bg-red-950/40' : 'border-[var(--border)]'
-                    }`}
-                />
-                {form.stockQuantity !== '' && (
-                  <p className={`text-[11px] mt-1 font-medium ${stockStatus.color}`}>
-                    {stockStatus.label}
-                  </p>
-                )}
-              </div>
-            </div>
-
-            {/* Exchange Available — segmented pill toggle */}
-            {isPhone && (
+          {/* Exchange & Additional (Phone only) */}
+          {isPhone && (
+            <div className="card-interactive p-4 space-y-4 cursor-default">
               <div>
                 <p className="text-sm font-semibold text-app-text mb-2">Exchange Available</p>
                 <div className="flex rounded-xl border border-[var(--border)] bg-surface-2 p-1 gap-1">
-                  <button
-                    type="button"
-                    onClick={() => update('exchangeEnabled', false)}
-                    className="flex-1 py-2 rounded-xl text-sm font-bold transition-all"
-                    style={!form.exchangeEnabled
-                      ? { background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--muted)' }
-                      : { color: 'var(--muted)' }
-                    }
-                  >
+                  <button onClick={() => update('exchangeEnabled', false)} className="flex-1 py-2 rounded-xl text-sm font-bold transition-all" style={!form.exchangeEnabled ? { background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--muted)' } : { color: 'var(--muted)' }}>
                     Exchange OFF
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => update('exchangeEnabled', true)}
-                    className="flex-1 py-2 rounded-xl text-sm font-bold transition-all"
-                    style={form.exchangeEnabled
-                      ? { background: 'var(--primary)', color: 'var(--primary-foreground)' }
-                      : { color: 'var(--muted)' }
-                    }
-                  >
+                  <button onClick={() => update('exchangeEnabled', true)} className="flex-1 py-2 rounded-xl text-sm font-bold transition-all" style={form.exchangeEnabled ? { background: 'var(--primary)', color: 'var(--primary-foreground)' } : { color: 'var(--muted)' }}>
                     Exchange ON
                   </button>
                 </div>
-                <p className="text-[11px] text-muted mt-1.5 px-0.5">
-                  {form.exchangeEnabled
-                    ? '✓ Customers can submit trade-in requests for this phone'
-                    : 'This phone is not available for exchange or trade-in'}
-                </p>
               </div>
-            )}
-          </div>
-{/* Description */}
-          <div className="card-interactive p-4 cursor-default">
-            <label className="text-xs font-semibold text-muted uppercase tracking-wide mb-1 block">
-              Description
-            </label>
-            <p className="text-[11px] text-muted mb-2.5">Optional extra notes only. Use the fields above for specs like storage, RAM, color, battery.</p>
-            <textarea
-              value={form.description}
-              onChange={(e) => update('description', e.target.value)}
-              placeholder="e.g. Comes with original box and charger. Minor scratch on the back."
-              rows={3}
-              className="w-full bg-surface-2 border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm text-app-text placeholder:text-muted outline-none outline-none transition-colors resize-none"
-            />
-          </div>
-
-          {/* Save error banner */}
-          {saveError && (
-            <div className="bg-red-950/50 border border-red-500/40 rounded-xl px-4 py-3 text-sm text-red-400 font-medium">
-              {saveError}
             </div>
           )}
 
-          {/* Primary Save button */}
-          <button
-            type="button"
-            onClick={handleSave}
-            disabled={saving}
-            className="w-full py-4 font-semibold btn-interactive rounded-xl shadow-sm disabled:opacity-50"
-            style={{ background: 'var(--primary)', color: 'var(--primary-foreground)' }}
-          >
+          <div className="card-interactive p-4 cursor-default">
+            <label className="text-xs font-semibold text-muted uppercase tracking-wide mb-1 block">Description</label>
+            <textarea value={form.description} onChange={(e) => update('description', e.target.value)} placeholder="e.g. Comes with original box and charger." rows={3} className="w-full bg-surface-2 border border-[var(--border)] rounded-xl px-3 py-2.5 text-sm text-app-text outline-none resize-none" />
+          </div>
+
+          {saveError && <div className="bg-red-950/50 border border-red-500/40 rounded-xl px-4 py-3 text-sm text-red-400 font-medium">{saveError}</div>}
+
+          <button onClick={handleSave} disabled={saving} className="w-full py-4 font-semibold btn-interactive rounded-xl shadow-sm disabled:opacity-50" style={{ background: 'var(--primary)', color: 'var(--primary-foreground)' }}>
             {saving ? 'Saving…' : isEdit ? 'Save Changes' : `Add ${form.type === 'phone' ? 'Phone' : 'Accessory'}`}
           </button>
-
-          {/* DEBUG — visible in Telegram to confirm which Convex deployment is active */}
-          {import.meta.env.DEV && (
-            <p className="text-center text-[10px] text-muted font-mono">
-              Convex: {debugHostname}
-            </p>
-          )}
-
-          {/* Archive / Restore (Edit only) */}
-          {isEdit && existingProduct && (
-            <div className="card-interactive p-4 cursor-default mt-4">
-              <p className="text-xs font-semibold text-muted uppercase tracking-wide mb-3">Danger Zone</p>
-              {existingProduct.archivedAt ? (
-                <button
-                  onClick={handleRestore}
-                  disabled={saving}
-                  className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-green-500 text-green-400 font-semibold text-sm btn-interactive disabled:opacity-50"
-                >
-                  <RotateCcw size={16} />
-                  Restore Product
-                </button>
-              ) : (
-                <button
-                  onClick={handleArchive}
-                  disabled={saving}
-                  className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border-2 border-red-500/60 text-red-400 font-semibold text-sm btn-interactive disabled:opacity-50"
-                >
-                  <Archive size={16} />
-                  Archive Product
-                </button>
-              )}
-              <p className="text-[11px] text-muted mt-2 text-center">
-                {existingProduct.archivedAt
-                  ? 'Restore to make product visible again'
-                  : 'Archived products are hidden from customers. Auto-deleted after 30 days.'}
-              </p>
+          
+          {isEdit && (
+            <div className="mt-4">
+               {existingProduct?.archivedAt ? (
+                  <button onClick={handleRestore} disabled={saving} className="w-full flex items-center justify-center py-3 rounded-xl border border-green-500 text-green-400 font-semibold text-sm">
+                    Restore Product
+                  </button>
+               ) : (
+                  <button onClick={handleArchive} disabled={saving} className="w-full flex items-center justify-center py-3 rounded-xl border border-red-500/60 text-red-400 font-semibold text-sm">
+                    Archive Product
+                  </button>
+               )}
             </div>
           )}
       </div>
     </div>
   );
 }
-
-
