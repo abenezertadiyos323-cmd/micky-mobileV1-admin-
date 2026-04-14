@@ -28,29 +28,32 @@ export default function AuthGuard({ children }: { children: ReactNode }) {
             backgroundImage: 'url("/micky-logo.png")',
             backgroundSize: 'cover',
             backgroundPosition: 'center',
-            filter: 'blur(40px) scale(1.1)',
+            filter: 'blur(60px) scale(1.2)',
           }}
         />
         
-        {/* Main Logo Container */}
-        <div className="relative z-10 flex flex-col items-center animate-in fade-in zoom-in duration-700">
-          <div className="w-32 h-32 mb-8 relative">
-            {/* Soft Glow */}
-            <div className="absolute inset-0 rounded-full bg-yellow-400/20 blur-2xl animate-pulse" />
-            
-            <img 
-              src="/micky-logo.png" 
-              alt="Micky Mobile" 
-              className="w-full h-full object-contain relative z-10 drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]"
-            />
-          </div>
+        {/* Main Loading Container */}
+        <div className="relative z-10 flex flex-col items-center animate-in fade-in zoom-in duration-1000">
+          <h1 
+            className="text-4xl md:text-5xl font-black tracking-tighter text-center"
+            style={{
+              color: '#FFFFFF',
+              textShadow: '0 0 10px rgba(255,255,255,0.8), 0 0 20px rgba(253,224,71,0.4)',
+              fontFamily: '"Inter", sans-serif'
+            }}
+          >
+            MICKY <span style={{ color: '#FDE047' }}>MOBILE</span>
+          </h1>
           
-          {/* Minimal Loading Indicator */}
-          <div className="flex gap-1.5 mt-4">
-            <div className="w-2 h-2 rounded-full bg-yellow-400 animate-bounce [animation-delay:-0.3s]" />
-            <div className="w-2 h-2 rounded-full bg-yellow-400 animate-bounce [animation-delay:-0.15s]" />
-            <div className="w-2 h-2 rounded-full bg-yellow-400 animate-bounce" />
+          <div className="mt-8 flex gap-2">
+            <div className="w-1.5 h-1.5 rounded-full bg-yellow-400/80 animate-ping" />
+            <div className="w-1.5 h-1.5 rounded-full bg-yellow-400/80 animate-ping [animation-delay:200ms]" />
+            <div className="w-1.5 h-1.5 rounded-full bg-yellow-400/80 animate-ping [animation-delay:400ms]" />
           </div>
+
+          <p className="mt-6 text-[10px] uppercase tracking-[0.3em] font-medium opacity-40 text-white">
+            Secure Admin Access
+          </p>
         </div>
       </div>
     );
