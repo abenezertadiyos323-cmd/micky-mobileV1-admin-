@@ -690,8 +690,8 @@ export default function Dashboard() {
         >
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-xs font-medium" style={{ color: 'var(--muted)' }}>Good day,</p>
-              <h1 className="text-xl font-bold" style={{ color: 'var(--text)' }}>{user.first_name} 👋</h1>
+              <p className="text-xs font-medium" style={{ color: 'var(--muted)' }}>Good day</p>
+              <h1 className="text-xl font-bold" style={{ color: 'var(--text)' }}>Micky 👋</h1>
             </div>
             <div className="flex items-center gap-2">
               <button
