@@ -1,5 +1,5 @@
 // convex/products.ts
-// Products backend — queries and mutations for TedyTech Admin
+// Products backend — queries and mutations for Micky Mobile Admin
 
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
