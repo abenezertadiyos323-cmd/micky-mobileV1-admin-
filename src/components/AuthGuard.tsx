@@ -64,7 +64,7 @@ function SplashScreen() {
           userSelect: "none",
         }}
       >
-        TEDYTECH
+        MICKY MOBILE
       </h1>
 
       {/* Tiny pulsing dots */}
