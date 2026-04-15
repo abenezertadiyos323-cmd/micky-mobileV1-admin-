@@ -4,68 +4,113 @@ import { api } from "../../convex/_generated/api";
 import { getTelegramInitData } from "../lib/telegram";
 import { Lock } from "lucide-react";
 
-/** Pure-CSS splash that renders instantly — no image files needed */
+/** Pure-CSS splash that renders instantly â€” no image files needed */
 function SplashScreen() {
   return (
     <div
       style={{
         position: "fixed",
         inset: 0,
-        background: "#000",
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
         justifyContent: "center",
         overflow: "hidden",
+        background:
+          "radial-gradient(circle at top, rgba(245,196,0,0.18), transparent 34%), radial-gradient(circle at bottom right, rgba(59,130,246,0.18), transparent 30%), linear-gradient(180deg, #0b0f1a 0%, #090d16 100%)",
       }}
     >
-      {/* Blurred colour blobs — Tech Blue Theme */}
+      {/* Warm gold and cool blue glow for the opening screen */}
       <div
         style={{
           position: "absolute",
-          width: 300,
-          height: 300,
+          width: 320,
+          height: 320,
           borderRadius: "50%",
-          background: "radial-gradient(circle, rgba(59,130,246,0.15) 0%, transparent 70%)",
-          filter: "blur(100px)",
-          top: "50%",
-          left: "50%",
-          transform: "translate(-50%, -60%)",
+          background: "radial-gradient(circle, rgba(245,196,0,0.22) 0%, transparent 68%)",
+          filter: "blur(110px)",
+          top: "35%",
+          left: "18%",
           pointerEvents: "none",
         }}
       />
       <div
         style={{
           position: "absolute",
-          width: 200,
-          height: 200,
+          width: 240,
+          height: 240,
           borderRadius: "50%",
-          background: "radial-gradient(circle, rgba(6,182,212,0.08) 0%, transparent 70%)",
-          filter: "blur(100px)",
-          bottom: "20%",
+          background: "radial-gradient(circle, rgba(59,130,246,0.16) 0%, transparent 70%)",
+          filter: "blur(110px)",
+          bottom: "18%",
           right: "10%",
+          pointerEvents: "none",
+        }}
+      />
+      <div
+        style={{
+          position: "absolute",
+          inset: "auto 16px 16px 16px",
+          height: 1,
+          background: "linear-gradient(90deg, transparent, rgba(245,196,0,0.25), transparent)",
           pointerEvents: "none",
         }}
       />
 
       {/* Brand text */}
-      <h1
+      <div
         style={{
           position: "relative",
           zIndex: 1,
-          margin: 0,
-          fontSize: "clamp(2.2rem, 10vw, 3.5rem)",
-          fontWeight: 900,
-          letterSpacing: "-0.02em",
-          color: "#fff",
-          fontFamily: '"Inter", system-ui, sans-serif',
-          textShadow:
-            "0 0 12px rgba(255,255,255,0.9), 0 0 30px rgba(59,130,246,0.5)",
+          display: "flex",
+          alignItems: "baseline",
+          gap: 12,
+          flexWrap: "wrap",
+          justifyContent: "center",
+          padding: "0 18px",
+          textAlign: "center",
           userSelect: "none",
         }}
       >
-        MICKY MOBILE
-      </h1>
+        <span
+          style={{
+            fontSize: "clamp(2.2rem, 9vw, 4rem)",
+            fontWeight: 900,
+            letterSpacing: "-0.04em",
+            color: "#F5C400",
+            textShadow: "0 0 18px rgba(245,196,0,0.35)",
+            fontFamily: '"Inter", system-ui, sans-serif',
+          }}
+        >
+          MICKY
+        </span>
+        <span
+          style={{
+            fontSize: "clamp(2.2rem, 9vw, 4rem)",
+            fontWeight: 900,
+            letterSpacing: "-0.04em",
+            color: "#EEF3FF",
+            textShadow: "0 0 18px rgba(255,255,255,0.18)",
+            fontFamily: '"Inter", system-ui, sans-serif',
+          }}
+        >
+          MOBILE
+        </span>
+      </div>
+
+      <p
+        style={{
+          position: "relative",
+          zIndex: 1,
+          margin: "14px 0 0",
+          fontSize: "0.82rem",
+          letterSpacing: "0.24em",
+          textTransform: "uppercase",
+          color: "rgba(234,240,255,0.62)",
+        }}
+      >
+        Admin mini app
+      </p>
 
       {/* Tiny pulsing dots */}
       <div
@@ -84,8 +129,8 @@ function SplashScreen() {
               width: 6,
               height: 6,
               borderRadius: "50%",
-              background: "#3B82F6",
-              opacity: 0.8,
+              background: delay === 200 ? "#F5C400" : "#3B82F6",
+              opacity: 0.85,
               animation: `ttPing 1.4s ${delay}ms ease-in-out infinite`,
             }}
           />
@@ -145,3 +190,4 @@ export default function AuthGuard({ children }: { children: ReactNode }) {
 
   return <>{children}</>;
 }
+
