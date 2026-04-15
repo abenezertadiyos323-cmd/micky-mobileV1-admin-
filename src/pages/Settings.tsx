@@ -238,7 +238,7 @@ export default function Settings() {
             <div>
               <SectionLabel>Store Settings</SectionLabel>
               <SettingsCard>
-                <InputRow label="Store Name" value={storeName} onChange={setStoreName} placeholder="e.g. TedyTech" />
+                <InputRow label="Store Name" value={storeName} onChange={setStoreName} placeholder="e.g. Micky Mobile" />
                 <InputRow label="Support Contact" value={supportContact} onChange={setSupportContact} placeholder="e.g. +251900000000" />
                 <InputRow label="Telegram Bot Link" value={telegramBotLink} onChange={setTelegramBotLink} placeholder="e.g. https://t.me/your_bot" />
                 <ApplyButton onPress={handleApplyStore} saving={storeSaving} />
@@ -298,7 +298,7 @@ export default function Settings() {
                   />
                   <div>
                     <p className="text-sm font-medium" style={{ color: 'var(--text)' }}>Brand Color</p>
-                    <p className="text-xs" style={{ color: 'var(--muted)' }}>TedyTech yellow (#F5C400) — set in CSS variables</p>
+                    <p className="text-xs" style={{ color: 'var(--muted)' }}>Micky Mobile yellow (#F5C400) — set in CSS variables</p>
                   </div>
                 </div>
               </SettingsCard>
