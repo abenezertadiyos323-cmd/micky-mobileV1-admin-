@@ -249,7 +249,7 @@ const GENERIC_TOPICS = [
   'Customer testimonials',
   'Fast delivery info',
   'Best deals this week',
-  'Why buy from TedyTech',
+  'Why buy from Micky Mobile',
 ];
 
 function getHook(phoneType: string): string {
@@ -691,7 +691,7 @@ export default function Dashboard() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs font-medium" style={{ color: 'var(--muted)' }}>Good day</p>
-              <h1 className="text-xl font-bold" style={{ color: 'var(--text)' }}>Tedy 👋</h1>
+              <h1 className="text-xl font-bold" style={{ color: 'var(--text)' }}>Micky Mobile 👋</h1>
             </div>
             <div className="flex items-center gap-2">
               <button
