@@ -27,6 +27,13 @@ const vStorageOption = v.union(
   v.literal("1TB"),
 );
 
+const vVariant = v.object({
+  storage: v.string(),
+  ram: v.optional(v.string()),
+  price: v.number(),
+  stock: v.number(),
+});
+
 type ProductType = "phone" | "accessory";
 
 function normalizeExchangeEnabled(type: ProductType, exchangeEnabled: boolean) {
@@ -492,6 +499,11 @@ export const createProduct = mutation({
     updatedBy: v.string(),
     sellerId: v.string(),
     // Additional phone specifications
+    brand: v.optional(v.string()),
+    batteryHealth: v.optional(v.string()),
+    modelOrigin: v.optional(v.string()),
+    network: v.optional(v.string()),
+    variants: v.optional(v.array(vVariant)),
     screenSize: v.optional(v.string()),
     battery: v.optional(v.string()),
     mainCamera: v.optional(v.string()),
@@ -550,6 +562,11 @@ export const updateProduct = mutation({
     images: v.optional(v.array(vImageInput)),
     updatedBy: v.string(),
     // Additional phone specifications
+    brand: v.optional(v.string()),
+    batteryHealth: v.optional(v.string()),
+    modelOrigin: v.optional(v.string()),
+    network: v.optional(v.string()),
+    variants: v.optional(v.array(vVariant)),
     screenSize: v.optional(v.string()),
     battery: v.optional(v.string()),
     mainCamera: v.optional(v.string()),
