@@ -132,7 +132,7 @@ export default function AuthGuard({ children }: { children: ReactNode }) {
           Access Denied
         </h1>
         <p className="text-sm max-w-sm mb-6" style={{ color: "var(--muted)" }}>
-          You are not authorized to view the TedyTech Admin Dashboard.
+          You are not authorized to view the Micky Mobile Admin Dashboard.
           Please ensure you are accessing this via an authorized Telegram account.
         </p>
       </div>
